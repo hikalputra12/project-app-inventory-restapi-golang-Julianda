@@ -4,9 +4,10 @@ go 1.25.5
 
 require (
 	github.com/jackc/pgx/v5 v5.8.0
-	github.com/joho/godotenv v1.5.1
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
+	go.uber.org/zap v1.27.1
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 )
 
 require (
@@ -21,6 +22,7 @@ require (
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
