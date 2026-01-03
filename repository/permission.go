@@ -17,6 +17,7 @@ func NewPermissionRepository(db database.PgxIface) *permissionRepository {
 	return &permissionRepository{db: db}
 }
 func (permissionRepository *permissionRepository) Allowed(userID int, code string) (bool, error) {
+
 	const qAllowed = `
     WITH perm AS (
         SELECT id FROM permissions WHERE code = $2
@@ -38,7 +39,7 @@ func (permissionRepository *permissionRepository) Allowed(userID int, code strin
             FROM users u
             JOIN role_permissions rp ON rp.role_id = u.role_id
             JOIN perm ON perm.id = rp.permission_id
-            WHERE u.user_id = $1  -- << PERBAIKAN DISINI (Sebelumnya u.id)
+            WHERE u.user_id = $1  
         ) THEN TRUE
         
         ELSE FALSE
@@ -47,5 +48,6 @@ func (permissionRepository *permissionRepository) Allowed(userID int, code strin
 
 	var allowed bool
 	err := permissionRepository.db.QueryRow(context.Background(), qAllowed, userID, code).Scan(&allowed)
+
 	return allowed, err
 }

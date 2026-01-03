@@ -46,6 +46,7 @@ func (r *userRepo) GetAllUser(page, limit int) ([]model.User, int, error) {
 		return nil, 0, err
 	}
 	query := `SELECT 
+	users.user_id,
     users.name, 
     users.email, 
     roles.name AS role_name
@@ -63,7 +64,7 @@ LIMIT $1 OFFSET $2;`
 	var users []model.User
 	for rows.Next() {
 		var t model.User
-		err := rows.Scan(&t.Name, &t.Email, &t.Role)
+		err := rows.Scan(&t.ID, &t.Name, &t.Email, &t.Role)
 		if err != nil {
 			return nil, 0, err
 		}

@@ -50,11 +50,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusUnauthorized, "Email atau password salah", nil)
 		return
 	}
-
 	// cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
-		Value:    "lumos-" + strconv.Itoa(user.ID),
+		Value:    strconv.Itoa(user.ID),
 		Path:     "/",
 		HttpOnly: true,
 	})

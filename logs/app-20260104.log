@@ -7,3 +7,4 @@
 2026-01-04T03:17:13.315+0800	WARN	handler/auth.go:56	Login failed	{"email": "julianda@admin.com", "error": "user not found"}
 2026-01-04T03:19:12.091+0800	WARN	handler/auth.go:56	Login failed	{"email": "julianda@admin.com", "error": "user not found"}
 2026-01-04T03:23:52.525+0800	WARN	handler/auth.go:56	Login failed	{"email": "julianda@admin.com", "error": "user not found"}
+2026-01-04T04:22:02.777+0800	ERROR	service/user.go:31	failed to connect service to read list user	{"error": "ERROR: column users.id does not exist (SQLSTATE 42703)"}
