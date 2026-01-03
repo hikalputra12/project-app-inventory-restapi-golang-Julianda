@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"app-inventory/dto"
 	"app-inventory/service"
+	"app-inventory/utils"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -21,16 +24,30 @@ func NewAuthHandler(authHendler service.AuthServiceInterface, log *zap.Logger) A
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+
+	var req dto.LoginRequest
+
+	//mengubah json body ke struct
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
 
-	email := r.FormValue("email")
-	password := r.FormValue("password")
-
-	user, err := h.AuthService.Login(email, password)
+	validationErrors, err := utils.ValidateErrors(req)
 	if err != nil {
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  false,
+			"message": "Validation failed",
+			"errors":  validationErrors,
+		})
+		return
+	}
+	user, err := h.AuthService.Login(req.Email, req.Password)
+	if err != nil {
+		utils.ResponseError(w, http.StatusUnauthorized, "Email atau password salah", nil)
 		return
 	}
 
@@ -41,12 +58,17 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		HttpOnly: true,
 	})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":  true,
+		"message": "Login successful",
+	})
 
-	http.Redirect(w, r, "/user/home", http.StatusSeeOther)
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	// cookie
+	// Clear Cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
 		Value:    "",
@@ -54,5 +76,12 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   -1,
 		HttpOnly: true,
 	})
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+
+	// Return JSON
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":  true,
+		"message": "Logout successful",
+	})
 }

@@ -7,12 +7,14 @@ import (
 )
 
 type Repo struct {
-	UserRepo UserRepoInterface
-	Log      *zap.Logger
+	UserRepo   UserRepoInterface
+	Permission PermissionIface
+	Log        *zap.Logger
 }
 
 func AllRepo(db database.PgxIface, log *zap.Logger) Repo {
 	return Repo{
-		UserRepo: NewUserRepo(db, log),
+		UserRepo:   NewUserRepo(db, log),
+		Permission: NewPermissionRepository(db),
 	}
 }

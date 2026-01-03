@@ -1,26 +1,26 @@
 package service
 
-// import (
-// 		"app-inventory/repository"
-// )
+import (
+	"app-inventory/repository"
+)
 
-// type PermissionIface interface {
-// 	Allowed(userID int, code string) (bool, error)
-// }
+type PermissionIface interface {
+	Allowed(userID int, code string) (bool, error)
+}
 
-// type permissionService struct {
-// 	Repo repository.Repo
-// }
+type permissionService struct {
+	Repo repository.Repo
+}
 
-// func NewPermissionService(repo repository.Repo) *permissionService {
-// 	return &permissionService{Repo: repo}
-// }
+func NewPermissionService(repo repository.Repo) *permissionService {
+	return &permissionService{Repo: repo}
+}
 
-// func (permissionService *permissionService) Allowed(userID int, code string) (bool, error) {
-// 	allowed, err := permissionService.Repo.PermissionRepository.Allowed(userID, code)
-// 	if err != nil {
-// 		return false, err
-// 	}
+func (permissionService *permissionService) Allowed(userID int, code string) (bool, error) {
+	allowed, err := permissionService.Repo.Permission.Allowed(userID, code)
+	if err != nil {
+		return false, err
+	}
 
-// 	return allowed, nil
-// }
+	return allowed, nil
+}

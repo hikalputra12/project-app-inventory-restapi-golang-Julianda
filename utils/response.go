@@ -6,15 +6,41 @@ import (
 	"net/http"
 )
 
-type Reponse struct {
+type Response struct {
 	Status  bool   `json:"status"`
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
 	Errors  any    `json:"errors,omitempty"`
 }
 
+func ResponseError(w http.ResponseWriter, code int, message string, errs interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+
+	response := Response{
+		Status:  false,
+		Message: message,
+		Errors:  errs,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// ResponseJSON digunakan untuk mengirim respon sukses (200, 201)
+func ResponseJSON(w http.ResponseWriter, code int, message string, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+
+	response := Response{
+		Status:  true,
+		Message: message,
+		Data:    data,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
 func ResponseSuccess(w http.ResponseWriter, code int, message string, data any) {
-	response := Reponse{
+	response := Response{
 		Status:  true,
 		Message: message,
 		Data:    data,
@@ -25,7 +51,7 @@ func ResponseSuccess(w http.ResponseWriter, code int, message string, data any) 
 }
 
 func ResponseBadRequest(w http.ResponseWriter, code int, message string, errors any) {
-	response := Reponse{
+	response := Response{
 		Status:  false,
 		Message: message,
 		Errors:  errors,

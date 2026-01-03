@@ -1,0 +1,9 @@
+2026-01-04T02:58:10.612+0800	ERROR	service/user.go:31	failed to connect service to read list user	{"error": "ERROR: column \"role\" does not exist (SQLSTATE 42703)"}
+2026-01-04T03:07:47.770+0800	WARN	handler/auth.go:56	Login failed	{"email": "julianda@admin.com", "error": "user not found"}
+2026-01-04T03:07:51.680+0800	WARN	handler/auth.go:56	Login failed	{"email": "julianda@admin.com", "error": "user not found"}
+2026-01-04T03:16:21.116+0800	WARN	handler/auth.go:56	Login failed	{"email": "julianda@admin.com", "error": "user not found"}
+2026-01-04T03:16:43.296+0800	WARN	handler/auth.go:56	Login failed	{"email": "julianda@admin.com", "error": "user not found"}
+2026-01-04T03:17:11.413+0800	WARN	handler/auth.go:56	Login failed	{"email": "julianda@admin.com", "error": "user not found"}
+2026-01-04T03:17:13.315+0800	WARN	handler/auth.go:56	Login failed	{"email": "julianda@admin.com", "error": "user not found"}
+2026-01-04T03:19:12.091+0800	WARN	handler/auth.go:56	Login failed	{"email": "julianda@admin.com", "error": "user not found"}
+2026-01-04T03:23:52.525+0800	WARN	handler/auth.go:56	Login failed	{"email": "julianda@admin.com", "error": "user not found"}

@@ -4,8 +4,8 @@ import (
 	"app-inventory/database"
 	"app-inventory/model"
 	"context"
-	"database/sql"
 
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -45,11 +45,15 @@ func (r *userRepo) GetAllUser(page, limit int) ([]model.User, int, error) {
 		r.Logger.Error("error query findall repo ", zap.Error(err))
 		return nil, 0, err
 	}
-	query := `SELECT name,email,role 
-	FROM users
-	WHERE deleted_at IS NULL
-	ORDER BY user_id ASC
-	LIMIT $1 OFFSET $2`
+	query := `SELECT 
+    users.name, 
+    users.email, 
+    roles.name AS role_name
+FROM users
+JOIN roles ON users.role_id = roles.id
+WHERE users.deleted_at IS NULL
+ORDER BY users.user_id ASC
+LIMIT $1 OFFSET $2;`
 	rows, err := r.DB.Query(context.Background(), query, limit, offset)
 	if err != nil {
 
@@ -70,9 +74,10 @@ func (r *userRepo) GetAllUser(page, limit int) ([]model.User, int, error) {
 
 func (r *userRepo) FindByEmail(email string) (*model.User, error) {
 	query := `
-		SELECT id, created_at, updated_at, deleted_at, name, email, password, role
-		FROM users
-		WHERE email = $1 AND deleted_at IS NULL
+		SELECT u.user_id, u.created_at, u.updated_at, u.deleted_at, u.name, u.email, u.password_hash, r.name as role
+        FROM users u
+        JOIN roles r ON u.role_id = r.id
+        WHERE u.email = $1 AND u.deleted_at IS NULL
 	`
 	var user model.User
 	err := r.DB.QueryRow(context.Background(), query, email).Scan(
@@ -80,8 +85,8 @@ func (r *userRepo) FindByEmail(email string) (*model.User, error) {
 		&user.Name, &user.Email, &user.Password, &user.Role,
 	)
 
-	if err == sql.ErrNoRows {
-		return nil, nil // menandakan  tidak ditemukan
+	if err == pgx.ErrNoRows {
+		return nil, err // menandakan  tidak ditemukan
 	}
 
 	return &user, err
