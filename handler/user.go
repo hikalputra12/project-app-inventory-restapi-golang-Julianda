@@ -85,11 +85,8 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		Email:    req.Email,
 		Password: req.Password,
 		Role_id:  req.Role_id,
-		Model: model.Model{
-			ID: req.User_id,
-		},
 	}
-	err := h.service.UpdateUser(&newUser)
+	err := h.service.UpdateUser(req.User_id, &newUser)
 	if err != nil {
 		utils.ResponseError(w, http.StatusBadRequest, "input tidak sesuai format yang di tentukan", nil)
 		return

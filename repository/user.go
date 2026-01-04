@@ -22,7 +22,7 @@ type userRepo struct {
 type UserRepoInterface interface {
 	GetAllUser(page, limit int) ([]model.User, int, error)
 	CreateUser(*model.User) error
-	UpdateUser(*model.User) error
+	UpdateUser(id int, user *model.User) error
 	FindByEmail(email string) (*model.User, error)
 }
 
@@ -36,12 +36,12 @@ func NewUserRepo(db database.PgxIface,
 }
 
 // update user
-func (r *userRepo) UpdateUser(user *model.User) error {
+func (r *userRepo) UpdateUser(id int, user *model.User) error {
 	query := `UPDATE users
 			SET name=$1,email=$2,password_hash=$3,role_id=$4,updated_at=$5 where user_id = $6`
 
 	now := time.Now()
-	_, err := r.DB.Exec(context.Background(), query, user.Name, user.Email, user.Password, user.Role_id, now, user.ID)
+	_, err := r.DB.Exec(context.Background(), query, user.Name, user.Email, user.Password, user.Role_id, now, id)
 	if err != nil {
 		return err
 	}
