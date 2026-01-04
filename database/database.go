@@ -14,7 +14,7 @@ import (
 type PgxIface interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-	Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error)
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
 func InitDB(config utils.DatabaseCofig) (*pgxpool.Pool, error) {

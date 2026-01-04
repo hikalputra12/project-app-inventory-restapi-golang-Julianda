@@ -5,3 +5,18 @@ type UserListResponse struct {
 	Email string `json:"email"`
 	Role  string `json:"role"`
 }
+
+type CreateNewUserRequest struct {
+	Name     string `json:"name" validate:"required, min=3"`
+	Email    string `json:"email" validate:"required,email"`
+	Role_id  int    `json:"role_id" validate:"required,gte=1,lte=3"`
+	Password string `json:"password" validate:"required,min=6"`
+}
+
+type UpdateUserRequest struct {
+	Name     string `json:"name" validate:"required, min=3"`
+	Email    string `json:"email" validate:"required,email"`
+	Role_id  int    `json:"role_id" validate:"required,gte=1,lte=3"`
+	Password string `json:"password" validate:"required,min=6"`
+	User_id  int    `json:"user_id" validate:"required,gte=0"`
+}

@@ -4,6 +4,7 @@ import (
 	"app-inventory/database"
 	"app-inventory/model"
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
@@ -20,6 +21,8 @@ type userRepo struct {
 }
 type UserRepoInterface interface {
 	GetAllUser(page, limit int) ([]model.User, int, error)
+	CreateUser(*model.User) error
+	UpdateUser(*model.User) error
 	FindByEmail(email string) (*model.User, error)
 }
 
@@ -30,6 +33,36 @@ func NewUserRepo(db database.PgxIface,
 		DB:     db,
 		Logger: log,
 	}
+}
+
+// update user
+func (r *userRepo) UpdateUser(user *model.User) error {
+	query := `UPDATE users
+			SET name=$1,email=$2,password_hash=$3,role_id=$4,updated_at=$5 where user_id = $6`
+
+	now := time.Now()
+	_, err := r.DB.Exec(context.Background(), query, user.Name, user.Email, user.Password, user.Role_id, now, user.ID)
+	if err != nil {
+		return err
+	}
+	user.UpdatedAt = now
+	return nil
+}
+
+// create user
+func (r *userRepo) CreateUser(user *model.User) error {
+	query := `INSERT INTO "users" ("name", "email", "password_hash", "role_id", created_at, updated_at)
+VALUES
+($1, $2, $3, $4,$5,$6) RETURNING user_id`
+
+	now := time.Now()
+	err := r.DB.QueryRow(context.Background(), query, user.Name, user.Email, user.Password, user.Role_id, now, now).Scan(&user.ID)
+	if err != nil {
+		return err
+	}
+	user.CreatedAt = now
+	user.UpdatedAt = now
+	return nil
 }
 
 // untuk membaca user yang ada

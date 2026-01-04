@@ -6,4 +6,5 @@ type User struct {
 	Email    string
 	Password string
 	Role     string
+	Role_id  int
 }

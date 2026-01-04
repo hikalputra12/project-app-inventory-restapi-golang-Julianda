@@ -15,6 +15,8 @@ type userService struct {
 }
 type UserServiceInterface interface {
 	GetAllUser(limit, offset int) ([]model.User, *dto.Pagination, error)
+	CreateUser(*model.User) error
+	UpdateUser(*model.User) error
 }
 
 // constructor
@@ -37,4 +39,20 @@ func (s *userService) GetAllUser(page, limit int) ([]model.User, *dto.Pagination
 		TotalPages:  utils.TotalPage(limit, int64(total)),
 	}
 	return users, &pagination, nil
+}
+
+func (s *userService) CreateUser(user *model.User) error {
+	err := s.repo.UserRepo.CreateUser(user)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *userService) UpdateUser(user *model.User) error {
+	err := s.repo.UserRepo.UpdateUser(user)
+	if err != nil {
+		return err
+	}
+	return nil
 }
