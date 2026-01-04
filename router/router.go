@@ -41,6 +41,13 @@ func Apiv1(handler handler.Handler, service service.Service, log *zap.Logger) *c
 		r.With(mw.RequirePermission("inventory:delete")).Delete("/delete", handler.Inventory.DeleteInventory)
 
 	})
+	r.Route("/category", func(r chi.Router) {
+		r.With(mw.RequirePermission("category:view")).Get("/", handler.Category.ListCategory)
+		r.With(mw.RequirePermission("category:manage")).Post("/create", handler.Category.CreateCategory)
+		r.With(mw.RequirePermission("category:manage")).Put("/update", handler.Category.UpdateCategory)
+		r.With(mw.RequirePermission("category:manage")).Delete("/delete", handler.Category.DeleteCategory)
+
+	})
 
 	return r
 }

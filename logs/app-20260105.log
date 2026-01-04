@@ -1,0 +1,1 @@
+2026-01-05T04:23:24.458+0800	ERROR	service/category.go:34	failed to connect service to read list Category	{"error": "ERROR: column \"inventory_id\" does not exist (SQLSTATE 42703)"}

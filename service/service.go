@@ -11,6 +11,7 @@ type Service struct {
 	AuthService      AuthServiceInterface
 	Permission       PermissionIface
 	InventoryService InventoryServiceInterface
+	CategoryService  CategoryServiceInterface
 	log              *zap.Logger
 }
 
@@ -18,6 +19,7 @@ func AllService(repo repository.Repo, log *zap.Logger) Service {
 	return Service{
 		UserService:      NewUserService(repo, log),
 		InventoryService: NewInventoryService(repo, log),
+		CategoryService:  NewCategoryService(repo, log),
 		AuthService:      NewAuthService(repo, log),
 		Permission:       NewPermissionService(repo),
 	}
