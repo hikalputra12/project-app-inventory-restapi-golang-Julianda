@@ -23,6 +23,7 @@ type UserRepoInterface interface {
 	GetAllUser(page, limit int) ([]model.User, int, error)
 	CreateUser(*model.User) error
 	UpdateUser(id int, user *model.User) error
+	DeleteUser(id int) error
 	FindByEmail(email string) (*model.User, error)
 }
 
@@ -46,6 +47,18 @@ func (r *userRepo) UpdateUser(id int, user *model.User) error {
 		return err
 	}
 	user.UpdatedAt = now
+	return nil
+}
+
+// delete user
+func (r *userRepo) DeleteUser(id int) error {
+	query := `DELETE FROM users
+			 where user_id = $1`
+
+	_, err := r.DB.Exec(context.Background(), query, id)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

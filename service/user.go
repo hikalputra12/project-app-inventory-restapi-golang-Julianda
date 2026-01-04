@@ -17,6 +17,7 @@ type UserServiceInterface interface {
 	GetAllUser(limit, offset int) ([]model.User, *dto.Pagination, error)
 	CreateUser(*model.User) error
 	UpdateUser(id int, user *model.User) error
+	DeleteUser(id int) error
 }
 
 // constructor
@@ -51,6 +52,13 @@ func (s *userService) CreateUser(user *model.User) error {
 
 func (s *userService) UpdateUser(id int, user *model.User) error {
 	err := s.repo.UserRepo.UpdateUser(id, user)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (s *userService) DeleteUser(id int) error {
+	err := s.repo.UserRepo.DeleteUser(id)
 	if err != nil {
 		return err
 	}

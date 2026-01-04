@@ -32,6 +32,7 @@ func Apiv1(handler handler.Handler, service service.Service, log *zap.Logger) *c
 		r.With(mw.RequirePermission("user:view")).Get("/", handler.User.ListUser)
 		r.With(mw.RequirePermission("user:manage")).Post("/create", handler.User.CreateUser)
 		r.With(mw.RequirePermission("user:manage")).Put("/update", handler.User.UpdateUser)
+		r.With(mw.RequirePermission("user:manage")).Delete("/delete", handler.User.DeleteUser)
 	})
 
 	return r

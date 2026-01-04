@@ -99,3 +99,25 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	})
 
 }
+
+func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	var req dto.DeleteUserRequest
+	//mengubah json body ke struct
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+		return
+	}
+
+	err := h.service.DeleteUser(req.User_id)
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "input tidak sesuai format yang di tentukan", nil)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":  true,
+		"message": "Delete user succesfully with ID:" + strconv.Itoa(req.User_id),
+	})
+
+}
