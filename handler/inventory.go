@@ -83,3 +83,53 @@ func (h *InventoryHandler) CreateInventory(w http.ResponseWriter, r *http.Reques
 	})
 
 }
+
+func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Request) {
+	var req dto.UpdateInventoryRequest
+	//mengubah json body ke struct
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+		return
+	}
+
+	newInventory := model.Inventory{
+		Name:                  req.Name,
+		Price:                 req.Price,
+		Stock:                 req.Stock,
+		Category_inventory_id: req.Category_id,
+	}
+	err := h.service.UpdateInventory(req.Inventory_id, &newInventory)
+	if err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":  true,
+		"message": "Update user succesfully",
+	})
+
+}
+
+func (h *InventoryHandler) DeleteInventory(w http.ResponseWriter, r *http.Request) {
+	var req dto.DeleteInventoryRequest
+	//mengubah json body ke struct
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+		return
+	}
+
+	err := h.service.DeleteInventory(req.Inventory_id)
+	if err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":  true,
+		"message": "Delete user succesfully with ID:" + strconv.Itoa(req.Inventory_id),
+	})
+
+}

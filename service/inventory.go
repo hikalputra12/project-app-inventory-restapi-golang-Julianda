@@ -16,6 +16,8 @@ type InventoryService struct {
 type InventoryServiceInterface interface {
 	GetAllInventory(page, limit int) ([]model.Inventory, *dto.Pagination, error)
 	CreateInventory(inventory *model.Inventory) error
+	UpdateInventory(id int, inventory *model.Inventory) error
+	DeleteInventory(id int) error
 }
 
 // constructor
@@ -42,6 +44,21 @@ func (s *InventoryService) GetAllInventory(page, limit int) ([]model.Inventory, 
 
 func (s *InventoryService) CreateInventory(inventory *model.Inventory) error {
 	err := s.repo.InventoryRepo.CreateInventory(inventory)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *InventoryService) UpdateInventory(id int, inventory *model.Inventory) error {
+	err := s.repo.InventoryRepo.UpdateInventory(id, inventory)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (s *InventoryService) DeleteInventory(id int) error {
+	err := s.repo.InventoryRepo.DeleteInventory(id)
 	if err != nil {
 		return err
 	}

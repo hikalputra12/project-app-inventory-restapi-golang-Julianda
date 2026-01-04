@@ -21,6 +21,8 @@ type InventoryRepo struct {
 type InventoryRepoInterface interface {
 	GetAllInventory(page, limit int) ([]model.Inventory, int, error)
 	CreateInventory(inventory *model.Inventory) error
+	UpdateInventory(id int, inventory *model.Inventory) error
+	DeleteInventory(id int) error
 }
 
 // constructor
@@ -93,4 +95,30 @@ LIMIT $1 OFFSET $2;`
 		Inventories = append(Inventories, t)
 	}
 	return Inventories, total, nil
+}
+
+// update inventory
+func (r *InventoryRepo) UpdateInventory(id int, inventory *model.Inventory) error {
+	query := `UPDATE inventories
+			SET name=$1,price=$2,stock=$3,category_inventory_id = $4, updated_at=$5 where inventory_id=$6`
+
+	now := time.Now()
+	_, err := r.DB.Exec(context.Background(), query, inventory.Name, inventory.Price, inventory.Stock, inventory.Category_inventory_id, now, id)
+	if err != nil {
+		return err
+	}
+	inventory.UpdatedAt = now
+	return nil
+}
+
+// delete inventory
+func (r *InventoryRepo) DeleteInventory(id int) error {
+	query := `DELETE FROM inventories
+			 where inventory_id = $1`
+
+	_, err := r.DB.Exec(context.Background(), query, id)
+	if err != nil {
+		return err
+	}
+	return nil
 }
