@@ -36,6 +36,7 @@ func Apiv1(handler handler.Handler, service service.Service, log *zap.Logger) *c
 	})
 	r.Route("/inventory", func(r chi.Router) {
 		r.With(mw.RequirePermission("inventory:view")).Get("/", handler.Inventory.ListInventory)
+		r.With(mw.RequirePermission("inventory:create")).Post("/create", handler.Inventory.CreateInventory)
 
 	})
 

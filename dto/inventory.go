@@ -8,3 +8,10 @@ type InventoryListResponse struct {
 	Rack      string `json:"rack"`
 	Warehouse string `json:"warehouse"`
 }
+
+type CreateInventoryRequest struct {
+	Name        string `json:"name" validate:"required,min=6"`
+	Price       int    `json:"price" validate:"required,gte=0"`
+	Stock       int    `json:"stock"  validate:"required,gte=0"`
+	Category_id int    `json:"category_id" validate:"required,gte=0"`
+}

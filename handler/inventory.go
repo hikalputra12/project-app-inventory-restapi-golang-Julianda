@@ -2,8 +2,10 @@ package handler
 
 import (
 	"app-inventory/dto"
+	"app-inventory/model"
 	"app-inventory/service"
 	"app-inventory/utils"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -52,5 +54,32 @@ func (h *InventoryHandler) ListInventory(w http.ResponseWriter, r *http.Request)
 
 	}
 	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
+
+}
+
+func (h *InventoryHandler) CreateInventory(w http.ResponseWriter, r *http.Request) {
+	var req dto.CreateInventoryRequest
+	//mengubah json body ke struct
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+		return
+	}
+	newInventory := model.Inventory{
+		Name:                  req.Name,
+		Price:                 req.Price,
+		Stock:                 req.Stock,
+		Category_inventory_id: req.Category_id,
+	}
+	err := h.service.CreateInventory(&newInventory)
+	if err != nil {
+		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":  true,
+		"message": "Create new inventory succesfully",
+	})
 
 }

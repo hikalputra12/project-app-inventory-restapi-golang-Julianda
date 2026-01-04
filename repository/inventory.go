@@ -4,6 +4,7 @@ import (
 	"app-inventory/database"
 	"app-inventory/model"
 	"context"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -19,6 +20,7 @@ type InventoryRepo struct {
 }
 type InventoryRepoInterface interface {
 	GetAllInventory(page, limit int) ([]model.Inventory, int, error)
+	CreateInventory(inventory *model.Inventory) error
 }
 
 // constructor
@@ -28,6 +30,21 @@ func NewInventoryRepo(db database.PgxIface,
 		DB:     db,
 		Logger: log,
 	}
+}
+
+func (r *InventoryRepo) CreateInventory(inventory *model.Inventory) error {
+	query := `INSERT INTO inventories ("name", "price", "stock", "category_inventory_id", created_at, updated_at)
+VALUES
+($1, $2, $3, $4,$5,$6) RETURNING inventory_id`
+
+	now := time.Now()
+	err := r.DB.QueryRow(context.Background(), query, inventory.Name, inventory.Price, inventory.Stock, inventory.Category_inventory_id, now, now).Scan(&inventory.ID)
+	if err != nil {
+		return err
+	}
+	inventory.CreatedAt = now
+	inventory.UpdatedAt = now
+	return nil
 }
 
 // untuk membaca Inventory yang ada
