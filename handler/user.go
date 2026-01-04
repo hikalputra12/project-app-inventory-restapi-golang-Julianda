@@ -42,7 +42,16 @@ func (h *UserHandler) ListUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.ResponsePagination(w, http.StatusOK, "success get data", users, *pagination)
+	var response []dto.UserListResponse
+	for _, item := range users {
+		response = append(response, dto.UserListResponse{
+			Name:  item.Name,
+			Email: item.Email,
+			Role:  item.Role,
+		})
+
+	}
+	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
 
 }
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {

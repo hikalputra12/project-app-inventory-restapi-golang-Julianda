@@ -34,6 +34,10 @@ func Apiv1(handler handler.Handler, service service.Service, log *zap.Logger) *c
 		r.With(mw.RequirePermission("user:manage")).Put("/update", handler.User.UpdateUser)
 		r.With(mw.RequirePermission("user:manage")).Delete("/delete", handler.User.DeleteUser)
 	})
+	r.Route("/inventory", func(r chi.Router) {
+		r.With(mw.RequirePermission("inventory:view")).Get("/", handler.Inventory.ListInventory)
+
+	})
 
 	return r
 }

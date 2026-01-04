@@ -14,7 +14,7 @@ type userService struct {
 	logger *zap.Logger
 }
 type UserServiceInterface interface {
-	GetAllUser(limit, offset int) ([]model.User, *dto.Pagination, error)
+	GetAllUser(page, limit int) ([]model.User, *dto.Pagination, error)
 	CreateUser(*model.User) error
 	UpdateUser(id int, user *model.User) error
 	DeleteUser(id int) error

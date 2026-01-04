@@ -7,14 +7,16 @@ import (
 )
 
 type Handler struct {
-	User UserHandler
-	Auth AuthHandler
-	log  *zap.Logger
+	User      UserHandler
+	Inventory InventoryHandler
+	Auth      AuthHandler
+	log       *zap.Logger
 }
 
 func AllHandler(service service.Service, log *zap.Logger) Handler {
 	return Handler{
-		User: NewUserHandler(service.UserService, log),
-		Auth: NewAuthHandler(service.AuthService, log),
+		User:      NewUserHandler(service.UserService, log),
+		Inventory: NewInventoryHandler(service.InventoryService, log),
+		Auth:      NewAuthHandler(service.AuthService, log),
 	}
 }
