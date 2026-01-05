@@ -62,5 +62,9 @@ func Apiv1(handler handler.Handler, service service.Service, log *zap.Logger) *c
 		r.With(mw.RequirePermission("warehouse:manage")).Delete("/delete", handler.Warehouse.DeleteWarehouse)
 
 	})
+	r.Route("/transaction", func(r chi.Router) {
+		r.With(mw.RequirePermission("transaction:manage")).Post("/create", handler.Transaction.CreateTransaction)
+
+	})
 	return r
 }

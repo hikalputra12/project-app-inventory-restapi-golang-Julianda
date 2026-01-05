@@ -94,11 +94,11 @@ func (h *WarehouseHandler) UpdateWarehouse(w http.ResponseWriter, r *http.Reques
 	cookie, _ := r.Cookie("session")
 
 	// 4. Konversi ke Integer (jika ID Anda berupa angka)
-	user_id, _ := strconv.Atoi(cookie.Value)
+	userId, _ := strconv.Atoi(cookie.Value)
 
 	newWarehouse := model.Warehouse{
 		Name:    req.Name,
-		User_id: user_id,
+		User_id: userId,
 	}
 	err := h.service.UpdateWarehouse(req.Warehouse_inventory_id, &newWarehouse)
 	if err != nil {
