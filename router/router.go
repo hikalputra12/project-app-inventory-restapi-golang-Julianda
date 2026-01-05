@@ -63,7 +63,10 @@ func Apiv1(handler handler.Handler, service service.Service, log *zap.Logger) *c
 
 	})
 	r.Route("/transaction", func(r chi.Router) {
-		r.With(mw.RequirePermission("transaction:manage")).Post("/create", handler.Transaction.CreateTransaction)
+		r.With(mw.RequirePermission("warehouse:manage")).Get("/", handler.Transaction.ListTransaction)
+		r.With(mw.RequirePermission("warehouse:manage")).Post("/create", handler.Transaction.CreateTransaction)
+		r.With(mw.RequirePermission("warehouse:manage")).Put("/update", handler.Transaction.UpdateTransaction)
+		r.With(mw.RequirePermission("warehouse:manage")).Delete("/delete", handler.Transaction.DeleteTransaction)
 
 	})
 	return r
