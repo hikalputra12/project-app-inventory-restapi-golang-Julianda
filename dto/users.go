@@ -18,9 +18,4 @@ type UpdateUserRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Role_id  int    `json:"role_id" validate:"required,gte=1,lte=3"`
 	Password string `json:"password" validate:"required,min=6"`
-	User_id  int    `json:"user_id" validate:"required,gte=0"`
-}
-
-type DeleteUserRequest struct {
-	User_id int `json:"user_id" validate:"required,gte=0"`
 }

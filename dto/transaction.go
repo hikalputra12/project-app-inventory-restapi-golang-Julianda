@@ -14,9 +14,5 @@ type TransactionListResponse struct {
 }
 
 type UpdateTransactionRequest struct {
-	Quantity    int `json:"quantity" validate:"required,gte=0"`
-	SalesItemID int `json:"sales_item_ID" validate:"required"`
-}
-type DeleteTransactionRequest struct {
-	SalesItemID int `json:"sales_item_ID" validate:"required,gte=0"`
+	Quantity int `json:"quantity" validate:"required,gte=0"`
 }

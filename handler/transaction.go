@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
@@ -86,6 +87,16 @@ func (h *TransactionHandler) ListTransaction(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *TransactionHandler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
+
+	//mengambil id
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+		return
+	}
 	var req dto.UpdateTransactionRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -102,7 +113,7 @@ func (h *TransactionHandler) UpdateTransaction(w http.ResponseWriter, r *http.Re
 		UserId:   userId,
 		Quantity: req.Quantity,
 	}
-	err := h.service.UpdateTransaction(req.SalesItemID, &newTransaction)
+	err = h.service.UpdateTransaction(id, &newTransaction)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -117,14 +128,17 @@ func (h *TransactionHandler) UpdateTransaction(w http.ResponseWriter, r *http.Re
 }
 
 func (h *TransactionHandler) DeleteTransaction(w http.ResponseWriter, r *http.Request) {
-	var req dto.DeleteTransactionRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+
+	//mengambil id
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
 		return
 	}
-
-	err := h.service.DeleteTransaction(req.SalesItemID)
+	err = h.service.DeleteTransaction(id)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -133,7 +147,7 @@ func (h *TransactionHandler) DeleteTransaction(w http.ResponseWriter, r *http.Re
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  true,
-		"message": "Delete user succesfully with ID:" + strconv.Itoa(req.SalesItemID),
+		"message": "Delete transaction succesfully",
 	})
 
 }

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
@@ -85,6 +86,15 @@ func (h *InventoryHandler) CreateInventory(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Request) {
+	//mengambil id
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+		return
+	}
 	var req dto.UpdateInventoryRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -98,7 +108,7 @@ func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Reques
 		Stock:                 req.Stock,
 		Category_inventory_id: req.Category_id,
 	}
-	err := h.service.UpdateInventory(req.Inventory_id, &newInventory)
+	err = h.service.UpdateInventory(id, &newInventory)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -113,14 +123,17 @@ func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *InventoryHandler) DeleteInventory(w http.ResponseWriter, r *http.Request) {
-	var req dto.DeleteInventoryRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	//mengambil id
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
 		return
 	}
 
-	err := h.service.DeleteInventory(req.Inventory_id)
+	err = h.service.DeleteInventory(id)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -129,7 +142,39 @@ func (h *InventoryHandler) DeleteInventory(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  true,
-		"message": "Delete user succesfully with ID:" + strconv.Itoa(req.Inventory_id),
+		"message": "Delete user succesfully",
 	})
+
+}
+
+func (h *InventoryHandler) CheckStock(w http.ResponseWriter, r *http.Request) {
+	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+	if err != nil {
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid page", nil)
+		return
+	}
+
+	// config limit pagination
+	limit := 3
+
+	// Get data Inventorys form service all Inventorys
+	Inventories, pagination, err := h.service.CheckStock(page, limit)
+	if err != nil {
+		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch inventory: "+err.Error(), nil)
+		return
+	}
+	var response []dto.InventoryListResponse
+	for _, item := range Inventories {
+		response = append(response, dto.InventoryListResponse{
+			Name:      item.Name,
+			Price:     item.Price,
+			Stock:     item.Stock,
+			Category:  item.Category,
+			Rack:      item.Rack,
+			Warehouse: item.Warehouse,
+		})
+
+	}
+	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
 
 }

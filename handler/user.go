@@ -6,9 +6,11 @@ import (
 	"app-inventory/service"
 	"app-inventory/utils"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
@@ -82,6 +84,30 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	// --- DEBUGGING START ---
+	fmt.Println("\n--- DEBUG INFO ---")
+	fmt.Printf("1. URL Asli yg masuk: %s\n", r.URL.Path)
+
+	// Cek apa yang ditangkap chi
+	rctx := chi.RouteContext(r.Context())
+	if rctx != nil {
+		fmt.Printf("2. Chi Pattern: %s\n", rctx.RoutePattern())
+		fmt.Printf("3. Chi URL Params Keys: %v\n", rctx.URLParams.Keys)
+		fmt.Printf("4. Chi URL Params Values: %v\n", rctx.URLParams.Values)
+	} else {
+		fmt.Println("2. Chi Context NIL (Bahaya!)")
+	}
+	// --- DEBUGGING END ---
+	//mengambil id
+	idStr := chi.URLParam(r, "id")
+	// DEBUG: Cek apa isi idStr
+	fmt.Printf("DEBUG ID: '%s'\n", idStr)
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+		return
+	}
 	var req dto.UpdateUserRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -95,7 +121,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 		Role_id:  req.Role_id,
 	}
-	err := h.service.UpdateUser(req.User_id, &newUser)
+	err = h.service.UpdateUser(id, &newUser)
 	if err != nil {
 		utils.ResponseError(w, http.StatusBadRequest, "input tidak sesuai format yang di tentukan", nil)
 		return
@@ -110,14 +136,17 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	var req dto.DeleteUserRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	//mengambil id
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
 		return
 	}
 
-	err := h.service.DeleteUser(req.User_id)
+	err = h.service.DeleteUser(id)
 	if err != nil {
 		utils.ResponseError(w, http.StatusBadRequest, "input tidak sesuai format yang di tentukan", nil)
 		return
@@ -126,7 +155,7 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  true,
-		"message": "Delete user succesfully with ID:" + strconv.Itoa(req.User_id),
+		"message": "Delete user succesfully ",
 	})
 
 }

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
@@ -79,6 +80,15 @@ func (h *RackHandler) CreateRack(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RackHandler) UpdateRack(w http.ResponseWriter, r *http.Request) {
+	//mengambil id
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+		return
+	}
 	var req dto.UpdateRackRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -90,7 +100,7 @@ func (h *RackHandler) UpdateRack(w http.ResponseWriter, r *http.Request) {
 		Name:                   req.Name,
 		Warehouse_inventory_id: req.Warehouse_inventory_id,
 	}
-	err := h.service.UpdateRack(req.Rack_Inventory_id, &newRack)
+	err = h.service.UpdateRack(id, &newRack)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -105,14 +115,16 @@ func (h *RackHandler) UpdateRack(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RackHandler) DeleteRack(w http.ResponseWriter, r *http.Request) {
-	var req dto.DeleteRackRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	//mengambil id
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
 		return
 	}
-
-	err := h.service.DeleteRack(req.Rack_Inventory_id)
+	err = h.service.DeleteRack(id)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -121,7 +133,7 @@ func (h *RackHandler) DeleteRack(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  true,
-		"message": "Delete user succesfully with ID:" + strconv.Itoa(req.Rack_Inventory_id),
+		"message": "Delete rack succesfully ",
 	})
 
 }

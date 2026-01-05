@@ -15,6 +15,7 @@ type InventoryService struct {
 }
 type InventoryServiceInterface interface {
 	GetAllInventory(page, limit int) ([]model.Inventory, *dto.Pagination, error)
+	CheckStock(page, limit int) ([]model.Inventory, *dto.Pagination, error)
 	CreateInventory(inventory *model.Inventory) error
 	UpdateInventory(id int, inventory *model.Inventory) error
 	DeleteInventory(id int) error
@@ -63,4 +64,18 @@ func (s *InventoryService) DeleteInventory(id int) error {
 		return err
 	}
 	return nil
+}
+
+func (s *InventoryService) CheckStock(page, limit int) ([]model.Inventory, *dto.Pagination, error) {
+	Inventories, total, err := s.repo.InventoryRepo.CheckStock(page, limit)
+	if err != nil {
+		s.logger.Error("failed to connect service to read list Inventory", zap.Error(err))
+		return nil, nil, err
+	}
+	pagination := dto.Pagination{
+		CurrentPage: page,
+		Limit:       limit,
+		TotalPages:  utils.TotalPage(limit, int64(total)),
+	}
+	return Inventories, &pagination, nil
 }

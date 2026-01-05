@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
@@ -84,6 +85,15 @@ func (h *WarehouseHandler) CreateWarehouse(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *WarehouseHandler) UpdateWarehouse(w http.ResponseWriter, r *http.Request) {
+	//mengambil id
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+		return
+	}
 	var req dto.UpdateWarehouseRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -100,7 +110,7 @@ func (h *WarehouseHandler) UpdateWarehouse(w http.ResponseWriter, r *http.Reques
 		Name:    req.Name,
 		User_id: userId,
 	}
-	err := h.service.UpdateWarehouse(req.Warehouse_inventory_id, &newWarehouse)
+	err = h.service.UpdateWarehouse(id, &newWarehouse)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -115,14 +125,16 @@ func (h *WarehouseHandler) UpdateWarehouse(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *WarehouseHandler) DeleteWarehouse(w http.ResponseWriter, r *http.Request) {
-	var req dto.DeleteWarehouseRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	//mengambil id
+	idStr := chi.URLParam(r, "id")
+
+	id, err := strconv.Atoi(idStr)
+
+	if err != nil {
+		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
 		return
 	}
-
-	err := h.service.DeleteWarehouse(req.Warehouse_Inventory_id)
+	err = h.service.DeleteWarehouse(id)
 	if err != nil {
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
@@ -131,7 +143,7 @@ func (h *WarehouseHandler) DeleteWarehouse(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  true,
-		"message": "Delete user succesfully with ID:" + strconv.Itoa(req.Warehouse_Inventory_id),
+		"message": "Delete user succesfully",
 	})
 
 }
