@@ -13,6 +13,7 @@ type Handler struct {
 	Rack        RackHandler
 	Warehouse   WarehouseHandler
 	Transaction TransactionHandler
+	Report      ReportHandler
 	Auth        AuthHandler
 	log         *zap.Logger
 }
@@ -24,6 +25,7 @@ func AllHandler(service service.Service, log *zap.Logger) Handler {
 		Category:    NewCategoryHandler(service.CategoryService, log),
 		Rack:        NewRackHandler(service.RackService, log),
 		Transaction: NewTransactionHandler(service.TransactionService, log),
+		Report:      NewReportHandler(service.ReportService, log),
 		Warehouse:   NewWarehouseHandler(service.WarehouseService, log),
 		Auth:        NewAuthHandler(service.AuthService, log),
 	}
