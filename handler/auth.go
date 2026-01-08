@@ -64,6 +64,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"message": "Login successful",
 	})
 
+	utils.ResponseSuccess(w, http.StatusOK, "login succes", nil)
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
@@ -83,4 +84,5 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		"status":  true,
 		"message": "Logout successful",
 	})
+	utils.ResponseSuccess(w, http.StatusOK, "delete succes", nil)
 }

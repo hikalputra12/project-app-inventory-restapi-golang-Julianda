@@ -39,6 +39,9 @@ func (h *InventoryHandler) ListInventory(w http.ResponseWriter, r *http.Request)
 	// Get data Inventorys form service all Inventorys
 	Inventories, pagination, err := h.service.GetAllInventory(page, limit)
 	if err != nil {
+		h.logger.Error("failed get all inventory on service",
+			zap.Error(err),
+		)
 		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch inventory: "+err.Error(), nil)
 		return
 	}
@@ -62,6 +65,7 @@ func (h *InventoryHandler) CreateInventory(w http.ResponseWriter, r *http.Reques
 	var req dto.CreateInventoryRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
 		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
@@ -73,6 +77,9 @@ func (h *InventoryHandler) CreateInventory(w http.ResponseWriter, r *http.Reques
 	}
 	err := h.service.CreateInventory(&newInventory)
 	if err != nil {
+		h.logger.Error("failed create inventory on service",
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
@@ -98,6 +105,7 @@ func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Reques
 	var req dto.UpdateInventoryRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
 		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
@@ -110,6 +118,10 @@ func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Reques
 	}
 	err = h.service.UpdateInventory(id, &newInventory)
 	if err != nil {
+		h.logger.Error("failed update inventory on service",
+			zap.String("user_id", idStr),
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
@@ -135,6 +147,10 @@ func (h *InventoryHandler) DeleteInventory(w http.ResponseWriter, r *http.Reques
 
 	err = h.service.DeleteInventory(id)
 	if err != nil {
+		h.logger.Error("failed delete inventory on service",
+			zap.String("user_id", idStr),
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
@@ -160,6 +176,9 @@ func (h *InventoryHandler) CheckStock(w http.ResponseWriter, r *http.Request) {
 	// Get data Inventorys form service all Inventorys
 	Inventories, pagination, err := h.service.CheckStock(page, limit)
 	if err != nil {
+		h.logger.Error("failed check stock where limit <= 5 on service",
+			zap.Error(err),
+		)
 		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch inventory: "+err.Error(), nil)
 		return
 	}

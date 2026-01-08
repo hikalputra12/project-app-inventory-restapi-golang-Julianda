@@ -31,7 +31,9 @@ func NewCategoryService(repo repository.Repo, log *zap.Logger) CategoryServiceIn
 func (s *CategoryService) GetAllCategory(page, limit int) ([]model.Category, *dto.Pagination, error) {
 	Categories, total, err := s.repo.CategoryRepo.GetAllCategory(page, limit)
 	if err != nil {
-		s.logger.Error("failed to connect service to read list Category", zap.Error(err))
+		s.logger.Error("failed get all list category on repository ",
+			zap.Error(err),
+		)
 		return nil, nil, err
 	}
 	pagination := dto.Pagination{
@@ -45,6 +47,9 @@ func (s *CategoryService) GetAllCategory(page, limit int) ([]model.Category, *dt
 func (s *CategoryService) CreateCategory(Category *model.Category) error {
 	err := s.repo.CategoryRepo.CreateCategory(Category)
 	if err != nil {
+		s.logger.Error("failed created category on repository ",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil
@@ -53,6 +58,9 @@ func (s *CategoryService) CreateCategory(Category *model.Category) error {
 func (s *CategoryService) UpdateCategory(id int, Category *model.Category) error {
 	err := s.repo.CategoryRepo.UpdateCategory(id, Category)
 	if err != nil {
+		s.logger.Error("failed updated category on repository ",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil
@@ -60,6 +68,9 @@ func (s *CategoryService) UpdateCategory(id int, Category *model.Category) error
 func (s *CategoryService) DeleteCategory(id int) error {
 	err := s.repo.CategoryRepo.DeleteCategory(id)
 	if err != nil {
+		s.logger.Error("failed deleted category on repository ",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil

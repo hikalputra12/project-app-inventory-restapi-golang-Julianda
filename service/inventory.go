@@ -46,6 +46,9 @@ func (s *InventoryService) GetAllInventory(page, limit int) ([]model.Inventory, 
 func (s *InventoryService) CreateInventory(inventory *model.Inventory) error {
 	err := s.repo.InventoryRepo.CreateInventory(inventory)
 	if err != nil {
+		s.logger.Error("failed created inventory on repository",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil
@@ -54,6 +57,9 @@ func (s *InventoryService) CreateInventory(inventory *model.Inventory) error {
 func (s *InventoryService) UpdateInventory(id int, inventory *model.Inventory) error {
 	err := s.repo.InventoryRepo.UpdateInventory(id, inventory)
 	if err != nil {
+		s.logger.Error("failed created category on repository ",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil
@@ -61,6 +67,9 @@ func (s *InventoryService) UpdateInventory(id int, inventory *model.Inventory) e
 func (s *InventoryService) DeleteInventory(id int) error {
 	err := s.repo.InventoryRepo.DeleteInventory(id)
 	if err != nil {
+		s.logger.Error("failed delete inventory on repository",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil

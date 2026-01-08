@@ -31,6 +31,9 @@ func NewTransactionService(repo repository.Repo, log *zap.Logger) TransactionSer
 func (s *TransactionService) CreateTransaction(Transaction *model.Transaction) error {
 	err := s.repo.TransactionRepo.CreateTransaction(Transaction)
 	if err != nil {
+		s.logger.Error("failed create transaction on repository",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil
@@ -53,6 +56,9 @@ func (s *TransactionService) GetAllTransaction(page, limit int) ([]model.Transac
 func (s *TransactionService) UpdateTransaction(id int, Transaction *model.Transaction) error {
 	err := s.repo.TransactionRepo.UpdateTransaction(id, Transaction)
 	if err != nil {
+		s.logger.Error("failed update transaction on repository",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil
@@ -60,6 +66,9 @@ func (s *TransactionService) UpdateTransaction(id int, Transaction *model.Transa
 func (s *TransactionService) DeleteTransaction(id int) error {
 	err := s.repo.TransactionRepo.DeleteTransaction(id)
 	if err != nil {
+		s.logger.Error("failed delete transaction on repository",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil

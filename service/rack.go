@@ -45,6 +45,9 @@ func (s *RackService) GetAllRack(page, limit int) ([]model.Rack, *dto.Pagination
 func (s *RackService) CreateRack(Rack *model.Rack) error {
 	err := s.repo.RackRepo.CreateRack(Rack)
 	if err != nil {
+		s.logger.Error("failed create rack on repository",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil
@@ -53,6 +56,9 @@ func (s *RackService) CreateRack(Rack *model.Rack) error {
 func (s *RackService) UpdateRack(id int, Rack *model.Rack) error {
 	err := s.repo.RackRepo.UpdateRack(id, Rack)
 	if err != nil {
+		s.logger.Error("failed upadate rack on repository",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil
@@ -60,6 +66,9 @@ func (s *RackService) UpdateRack(id int, Rack *model.Rack) error {
 func (s *RackService) DeleteRack(id int) error {
 	err := s.repo.RackRepo.DeleteRack(id)
 	if err != nil {
+		s.logger.Error("failed delete rack on repository",
+			zap.Error(err),
+		)
 		return err
 	}
 	return nil

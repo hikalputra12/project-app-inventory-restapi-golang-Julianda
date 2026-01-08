@@ -30,6 +30,7 @@ func (h *TransactionHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 	var req dto.CreateTransactionRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
 		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
@@ -45,6 +46,9 @@ func (h *TransactionHandler) CreateTransaction(w http.ResponseWriter, r *http.Re
 	}
 	err := h.service.CreateTransaction(&newTransaction)
 	if err != nil {
+		h.logger.Error("failed create transaction on service",
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
@@ -70,6 +74,9 @@ func (h *TransactionHandler) ListTransaction(w http.ResponseWriter, r *http.Requ
 	// Get data Transactions form service all Transactions
 	Transaction, pagination, err := h.service.GetAllTransaction(page, limit)
 	if err != nil {
+		h.logger.Error("failed get list transaction on service",
+			zap.Error(err),
+		)
 		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch Transaction: "+err.Error(), nil)
 		return
 	}
@@ -115,6 +122,10 @@ func (h *TransactionHandler) UpdateTransaction(w http.ResponseWriter, r *http.Re
 	}
 	err = h.service.UpdateTransaction(id, &newTransaction)
 	if err != nil {
+		h.logger.Error("failed update transaction on service",
+			zap.String("user_id", idStr),
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
@@ -140,6 +151,10 @@ func (h *TransactionHandler) DeleteTransaction(w http.ResponseWriter, r *http.Re
 	}
 	err = h.service.DeleteTransaction(id)
 	if err != nil {
+		h.logger.Error("failed delete transaction on service",
+			zap.String("user_id", idStr),
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}

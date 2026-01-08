@@ -26,6 +26,9 @@ func (h *ReportHandler) Report(w http.ResponseWriter, r *http.Request) {
 
 	report, err := h.service.Report()
 	if err != nil {
+		h.logger.Error("failed get report on service",
+			zap.Error(err),
+		)
 		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch Report: "+err.Error(), nil)
 		return
 	}

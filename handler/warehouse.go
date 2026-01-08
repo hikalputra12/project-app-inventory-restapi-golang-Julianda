@@ -39,6 +39,9 @@ func (h *WarehouseHandler) ListWarehouse(w http.ResponseWriter, r *http.Request)
 	// Get data Warehouses form service all Warehouses
 	Warehouse, pagination, err := h.service.GetAllWarehouse(page, limit)
 	if err != nil {
+		h.logger.Error("failed get list warehouse on service",
+			zap.Error(err),
+		)
 		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch Warehouse: "+err.Error(), nil)
 		return
 	}
@@ -57,6 +60,7 @@ func (h *WarehouseHandler) CreateWarehouse(w http.ResponseWriter, r *http.Reques
 	var req dto.CreateWarehouseRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
 		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
@@ -72,6 +76,9 @@ func (h *WarehouseHandler) CreateWarehouse(w http.ResponseWriter, r *http.Reques
 	}
 	err := h.service.CreateWarehouse(&newWarehouse)
 	if err != nil {
+		h.logger.Error("failed create warehouse on service",
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
@@ -97,6 +104,7 @@ func (h *WarehouseHandler) UpdateWarehouse(w http.ResponseWriter, r *http.Reques
 	var req dto.UpdateWarehouseRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
 		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
@@ -112,6 +120,10 @@ func (h *WarehouseHandler) UpdateWarehouse(w http.ResponseWriter, r *http.Reques
 	}
 	err = h.service.UpdateWarehouse(id, &newWarehouse)
 	if err != nil {
+		h.logger.Error("failed update warehouse on service",
+			zap.String("user_id", idStr),
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
@@ -136,6 +148,10 @@ func (h *WarehouseHandler) DeleteWarehouse(w http.ResponseWriter, r *http.Reques
 	}
 	err = h.service.DeleteWarehouse(id)
 	if err != nil {
+		h.logger.Error("failed delete warehouse on service",
+			zap.String("user_id", idStr),
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}

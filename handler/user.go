@@ -6,7 +6,6 @@ import (
 	"app-inventory/service"
 	"app-inventory/utils"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -40,6 +39,9 @@ func (h *UserHandler) ListUser(w http.ResponseWriter, r *http.Request) {
 	// Get data users form service all users
 	users, pagination, err := h.service.GetAllUser(page, limit)
 	if err != nil {
+		h.logger.Error("failed get list user on service",
+			zap.Error(err),
+		)
 		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
 		return
 	}
@@ -54,7 +56,6 @@ func (h *UserHandler) ListUser(w http.ResponseWriter, r *http.Request) {
 
 	}
 	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
-
 }
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateNewUserRequest
@@ -71,6 +72,9 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	err := h.service.CreateUser(&newUser)
 	if err != nil {
+		h.logger.Error("failed create user on service",
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusBadRequest, "input tidak sesuai format yang di tentukan", nil)
 		return
 	}
@@ -80,20 +84,19 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		"status":  true,
 		"message": "Create new user succesfully",
 	})
+	h.logger.Info("sukses membuat user baru")
+	utils.ResponseSuccess(w, http.StatusOK, "user ceated", nil)
 
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
-	h.logger.Info("Update User Debug Info",
-		zap.String("url_path", r.URL.Path),
-		zap.String("chi_pattern", chi.RouteContext(r.Context()).RoutePattern()),
-	)
-
 	//mengambil id
 	idStr := chi.URLParam(r, "id")
-	// DEBUG: Cek apa isi idStr
-	fmt.Printf("DEBUG ID: '%s'\n", idStr)
+	h.logger.Info("Request Update User dimulai",
+		zap.String("user_id", idStr),
+		zap.String("path", r.URL.Path),
+	)
 	id, err := strconv.Atoi(idStr)
 
 	if err != nil {
@@ -103,7 +106,8 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	var req dto.UpdateUserRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid input", nil)
 		return
 	}
 
@@ -115,6 +119,10 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.service.UpdateUser(id, &newUser)
 	if err != nil {
+		h.logger.Error("failed update user on service",
+			zap.String("user_id", idStr),
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusBadRequest, "input tidak sesuai format yang di tentukan", nil)
 		return
 	}
@@ -125,6 +133,9 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		"message": "Update user succesfully",
 	})
 
+	//log sukses
+	h.logger.Info("sukses update user", zap.String("user_id", idStr))
+	utils.ResponseSuccess(w, http.StatusOK, "user update", nil)
 }
 
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
@@ -140,6 +151,10 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	err = h.service.DeleteUser(id)
 	if err != nil {
+		h.logger.Error("failed delete user on service",
+			zap.String("user_id", idStr),
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusBadRequest, "input tidak sesuai format yang di tentukan", nil)
 		return
 	}
@@ -149,5 +164,8 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		"status":  true,
 		"message": "Delete user succesfully ",
 	})
+	//log sukses
+	h.logger.Info("sukses delete user", zap.String("user_id", idStr))
+	utils.ResponseSuccess(w, http.StatusOK, "user delete", nil)
 
 }

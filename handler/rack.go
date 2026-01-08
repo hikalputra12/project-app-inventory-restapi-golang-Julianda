@@ -39,6 +39,9 @@ func (h *RackHandler) ListRack(w http.ResponseWriter, r *http.Request) {
 	// Get data Racks form service all Racks
 	rack, pagination, err := h.service.GetAllRack(page, limit)
 	if err != nil {
+		h.logger.Error("failed get all rack on service",
+			zap.Error(err),
+		)
 		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch Rack: "+err.Error(), nil)
 		return
 	}
@@ -58,6 +61,7 @@ func (h *RackHandler) CreateRack(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateRackRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
 		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
@@ -67,6 +71,9 @@ func (h *RackHandler) CreateRack(w http.ResponseWriter, r *http.Request) {
 	}
 	err := h.service.CreateRack(&newRack)
 	if err != nil {
+		h.logger.Error("failed create rack on service",
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
@@ -86,12 +93,17 @@ func (h *RackHandler) UpdateRack(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(idStr)
 
 	if err != nil {
+		h.logger.Error("failed update rack on service",
+			zap.String("user_id", idStr),
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
 		return
 	}
 	var req dto.UpdateRackRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
 		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
@@ -126,6 +138,10 @@ func (h *RackHandler) DeleteRack(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.service.DeleteRack(id)
 	if err != nil {
+		h.logger.Error("failed delete rack on service",
+			zap.String("user_id", idStr),
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}

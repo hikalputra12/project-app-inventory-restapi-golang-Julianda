@@ -26,6 +26,9 @@ func NewReportService(repo repository.Repo, log *zap.Logger) ReportServiceInterf
 func (s *ReportService) Report() (*model.Report, error) {
 	report, err := s.repo.ReportRepo.Report()
 	if err != nil {
+		s.logger.Error("failed create report on repository",
+			zap.Error(err),
+		)
 		return nil, err
 	}
 	return report, nil

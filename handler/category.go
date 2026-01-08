@@ -39,6 +39,7 @@ func (h *CategoryHandler) ListCategory(w http.ResponseWriter, r *http.Request) {
 	// Get data Categorys form service all Categorys
 	Categories, pagination, err := h.service.GetAllCategory(page, limit)
 	if err != nil {
+		h.logger.Error("failed gewt all category on service")
 		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch Category: "+err.Error(), nil)
 		return
 	}
@@ -58,6 +59,7 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	var req dto.CreateCategoryRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
 		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
@@ -67,6 +69,7 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 	}
 	err := h.service.CreateCategory(&newCategory)
 	if err != nil {
+		h.logger.Error("failed create category on service")
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
@@ -76,6 +79,7 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 		"status":  true,
 		"message": "Create new Category succesfully",
 	})
+	utils.ResponseSuccess(w, http.StatusOK, "user ceated", nil)
 
 }
 
@@ -92,6 +96,7 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 	var req dto.UpdateCategoryRequest
 	//mengubah json body ke struct
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
 		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
@@ -102,6 +107,7 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 	}
 	err = h.service.UpdateCategory(id, &newCategory)
 	if err != nil {
+		h.logger.Error("failed update category on service")
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
@@ -109,9 +115,9 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  true,
-		"message": "Update user succesfully",
+		"message": "Update category succesfully",
 	})
-
+	utils.ResponseSuccess(w, http.StatusOK, "new category created", nil)
 }
 
 func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
@@ -125,6 +131,10 @@ func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request)
 
 	err = h.service.DeleteCategory(id)
 	if err != nil {
+		h.logger.Error("failed delete category on service",
+			zap.String("user_id", idStr),
+			zap.Error(err),
+		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
 		return
 	}
@@ -132,7 +142,8 @@ func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  true,
-		"message": "Delete user succesfully ",
+		"message": "Delete category succesfully ",
 	})
+	utils.ResponseSuccess(w, http.StatusOK, "delete category success", nil)
 
 }
