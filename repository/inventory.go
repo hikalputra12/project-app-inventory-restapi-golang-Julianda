@@ -43,6 +43,10 @@ VALUES
 	now := time.Now()
 	err := r.DB.QueryRow(context.Background(), query, inventory.Name, inventory.Price, inventory.Stock, inventory.Category_inventory_id, now, now).Scan(&inventory.ID)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal create inventory",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	inventory.CreatedAt = now
@@ -82,7 +86,10 @@ ORDER BY
 LIMIT $1 OFFSET $2;`
 	rows, err := r.DB.Query(context.Background(), query, limit, offset)
 	if err != nil {
-
+		r.Logger.Error("Database Query Error: Gagal mendapatkan semua inventory",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return nil, 0, err
 	}
 	defer rows.Close()
@@ -106,6 +113,10 @@ func (r *InventoryRepo) UpdateInventory(id int, inventory *model.Inventory) erro
 	now := time.Now()
 	_, err := r.DB.Exec(context.Background(), query, inventory.Name, inventory.Price, inventory.Stock, inventory.Category_inventory_id, now, id)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal update inventory",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	inventory.UpdatedAt = now
@@ -119,6 +130,10 @@ func (r *InventoryRepo) DeleteInventory(id int) error {
 
 	_, err := r.DB.Exec(context.Background(), query, id)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal delete inventory",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	return nil
@@ -157,6 +172,9 @@ ORDER BY
 LIMIT $1 OFFSET $2;`
 	rows, err := r.DB.Query(context.Background(), query, limit, offset)
 	if err != nil {
+		r.Logger.Error("failed to check stock inventory from database where limit <= 5",
+			zap.Error(err),
+		)
 
 		return nil, 0, err
 	}

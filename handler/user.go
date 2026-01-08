@@ -84,20 +84,12 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	// --- DEBUGGING START ---
-	fmt.Println("\n--- DEBUG INFO ---")
-	fmt.Printf("1. URL Asli yg masuk: %s\n", r.URL.Path)
 
-	// Cek apa yang ditangkap chi
-	rctx := chi.RouteContext(r.Context())
-	if rctx != nil {
-		fmt.Printf("2. Chi Pattern: %s\n", rctx.RoutePattern())
-		fmt.Printf("3. Chi URL Params Keys: %v\n", rctx.URLParams.Keys)
-		fmt.Printf("4. Chi URL Params Values: %v\n", rctx.URLParams.Values)
-	} else {
-		fmt.Println("2. Chi Context NIL (Bahaya!)")
-	}
-	// --- DEBUGGING END ---
+	h.logger.Info("Update User Debug Info",
+		zap.String("url_path", r.URL.Path),
+		zap.String("chi_pattern", chi.RouteContext(r.Context()).RoutePattern()),
+	)
+
 	//mengambil id
 	idStr := chi.URLParam(r, "id")
 	// DEBUG: Cek apa isi idStr

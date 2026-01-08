@@ -55,7 +55,11 @@ RETURNING sales_item_id
 	).Scan(&transaction.ID)
 
 	if err != nil {
-		return err // Otomatis Rollback karena defer di atas
+		r.Logger.Error("Database Query Error: Gagal create transaksi penjualan item inventory",
+			zap.Error(err),
+			zap.String("query", queryInsert),
+		)
+		return err
 	}
 
 	//query untuk edit stock di inventory
@@ -67,6 +71,10 @@ RETURNING sales_item_id
 
 	cmdTag, err := tx.Exec(context.Background(), queryUpdate, transaction.Quantity, now, transaction.InventoryId)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal mengubah stok item di tabel inventoris",
+			zap.Error(err),
+			zap.String("query", queryUpdate),
+		)
 		return err
 	}
 
@@ -83,9 +91,7 @@ RETURNING sales_item_id
 // untuk membaca Transaction yang ada
 func (r *TransactionRepo) GetAllTransaction(page, limit int) ([]model.Transaction, int, error) {
 
-	//menghitung offset
 	offset := (page - 1) * limit
-	// get total data for pagination
 	var total int
 	countQuery := `SELECT COUNT(*) FROM sales_item WHERE deleted_at IS NULL`
 	err := r.DB.QueryRow(context.Background(), countQuery).Scan(&total)
@@ -167,6 +173,10 @@ func (r *TransactionRepo) UpdateTransaction(id int, transaction *model.Transacti
 	// Perhatikan parameter: $1 diisi 'change' (selisih), bukan total quantity
 	cmdTag, err := tx.Exec(ctx, queryUpdateStock, change, now, inventoryID)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal update stock transaksi",
+			zap.Error(err),
+			zap.String("query", queryUpdateStock),
+		)
 		return err
 	}
 
@@ -189,6 +199,10 @@ func (r *TransactionRepo) DeleteTransaction(id int) error {
 
 	_, err := r.DB.Exec(context.Background(), query, id)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal cmebnghapus transaksi",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	return nil

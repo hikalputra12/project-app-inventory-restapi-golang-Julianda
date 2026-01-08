@@ -36,6 +36,10 @@ VALUES ($1, $2, $3, $4) RETURNING warehouse_inventory_id`
 	now := time.Now()
 	err := r.DB.QueryRow(context.Background(), query, Warehouse.Name, Warehouse.User_id, now, now).Scan(&Warehouse.ID)
 	if err != nil {
+		r.Logger.Error("failed to insert a new warehouse to database",
+			zap.Error(err),
+			zap.String("warehouse_name: %s", Warehouse.Name),
+		)
 		return err
 	}
 	Warehouse.CreatedAt = now
@@ -60,7 +64,10 @@ func (r *WarehouseRepo) GetAllWarehouse(page, limit int) ([]model.Warehouse, int
 LIMIT $1 OFFSET $2;`
 	rows, err := r.DB.Query(context.Background(), query, limit, offset)
 	if err != nil {
-
+		r.Logger.Error("Database Query Error: Gagal mendapatkan data jenis gudang",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return nil, 0, err
 	}
 	defer rows.Close()
@@ -83,6 +90,10 @@ func (r *WarehouseRepo) UpdateWarehouse(id int, Warehouse *model.Warehouse) erro
 	now := time.Now()
 	_, err := r.DB.Exec(context.Background(), query, Warehouse.Name, Warehouse.User_id, now, id)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal mengubah jenis gudang",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	Warehouse.UpdatedAt = now
@@ -96,6 +107,10 @@ func (r *WarehouseRepo) DeleteWarehouse(id int) error {
 
 	_, err := r.DB.Exec(context.Background(), query, id)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal menghapus gudang",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	return nil

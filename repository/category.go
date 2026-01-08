@@ -36,6 +36,10 @@ VALUES ($1, $2, $3, $4) RETURNING category_inventory_id`
 	now := time.Now()
 	err := r.DB.QueryRow(context.Background(), query, category.Name, category.Rack_inventory_id, now, now).Scan(&category.ID)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal Insert Category",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	category.CreatedAt = now
@@ -60,7 +64,10 @@ func (r *CategoryRepo) GetAllCategory(page, limit int) ([]model.Category, int, e
 LIMIT $1 OFFSET $2;`
 	rows, err := r.DB.Query(context.Background(), query, limit, offset)
 	if err != nil {
-
+		r.Logger.Error("Database Query Error: Gagal select all Category",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return nil, 0, err
 	}
 	defer rows.Close()
@@ -83,6 +90,10 @@ func (r *CategoryRepo) UpdateCategory(id int, category *model.Category) error {
 	now := time.Now()
 	_, err := r.DB.Exec(context.Background(), query, category.Name, category.Rack_inventory_id, now, id)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal update Category",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	category.UpdatedAt = now
@@ -96,6 +107,10 @@ func (r *CategoryRepo) DeleteCategory(id int) error {
 
 	_, err := r.DB.Exec(context.Background(), query, id)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal delete Category",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	return nil

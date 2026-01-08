@@ -43,6 +43,10 @@ func (r *ReportRepo) Report() (*model.Report, error) {
 	)
 
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal create report",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return nil, err
 	}
 

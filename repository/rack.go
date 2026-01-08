@@ -36,6 +36,10 @@ VALUES ($1, $2, $3, $4) RETURNING rack_inventory_id`
 	now := time.Now()
 	err := r.DB.QueryRow(context.Background(), query, Rack.Name, Rack.Warehouse_inventory_id, now, now).Scan(&Rack.ID)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal create rak",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	Rack.CreatedAt = now
@@ -60,7 +64,10 @@ func (r *RackRepo) GetAllRack(page, limit int) ([]model.Rack, int, error) {
 LIMIT $1 OFFSET $2;`
 	rows, err := r.DB.Query(context.Background(), query, limit, offset)
 	if err != nil {
-
+		r.Logger.Error("Database Query Error: Gagal mendapatkan semua rak",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return nil, 0, err
 	}
 	defer rows.Close()
@@ -83,6 +90,10 @@ func (r *RackRepo) UpdateRack(id int, Rack *model.Rack) error {
 	now := time.Now()
 	_, err := r.DB.Exec(context.Background(), query, Rack.Name, Rack.Warehouse_inventory_id, now, id)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal update rak",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	Rack.UpdatedAt = now
@@ -96,6 +107,10 @@ func (r *RackRepo) DeleteRack(id int) error {
 
 	_, err := r.DB.Exec(context.Background(), query, id)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal delete rak",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	return nil

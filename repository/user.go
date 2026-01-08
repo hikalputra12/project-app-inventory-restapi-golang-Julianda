@@ -44,6 +44,10 @@ func (r *userRepo) UpdateUser(id int, user *model.User) error {
 	now := time.Now()
 	_, err := r.DB.Exec(context.Background(), query, user.Name, user.Email, user.Password, user.Role_id, now, id)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal merubah data user",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	user.UpdatedAt = now
@@ -57,6 +61,10 @@ func (r *userRepo) DeleteUser(id int) error {
 
 	_, err := r.DB.Exec(context.Background(), query, id)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal menghapus user",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	return nil
@@ -71,6 +79,10 @@ VALUES
 	now := time.Now()
 	err := r.DB.QueryRow(context.Background(), query, user.Name, user.Email, user.Password, user.Role_id, now, now).Scan(&user.ID)
 	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal membuat user baru",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return err
 	}
 	user.CreatedAt = now
@@ -103,7 +115,10 @@ ORDER BY users.user_id ASC
 LIMIT $1 OFFSET $2;`
 	rows, err := r.DB.Query(context.Background(), query, limit, offset)
 	if err != nil {
-
+		r.Logger.Error("Database Query Error: Gagal mendapatkan list user",
+			zap.Error(err),
+			zap.String("query", query),
+		)
 		return nil, 0, err
 	}
 	defer rows.Close()
@@ -133,7 +148,11 @@ func (r *userRepo) FindByEmail(email string) (*model.User, error) {
 	)
 
 	if err == pgx.ErrNoRows {
-		return nil, err // menandakan  tidak ditemukan
+		r.Logger.Error("Database Query Error: Gagal menemukan email",
+			zap.Error(err),
+			zap.String("query", query),
+		)
+		return nil, err
 	}
 
 	return &user, err
