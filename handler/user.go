@@ -85,7 +85,6 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		"message": "Create new user succesfully",
 	})
 	h.logger.Info("sukses membuat user baru")
-	utils.ResponseSuccess(w, http.StatusOK, "user ceated", nil)
 
 }
 
@@ -135,7 +134,6 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	//log sukses
 	h.logger.Info("sukses update user", zap.String("user_id", idStr))
-	utils.ResponseSuccess(w, http.StatusOK, "user update", nil)
 }
 
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
@@ -166,6 +164,4 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	})
 	//log sukses
 	h.logger.Info("sukses delete user", zap.String("user_id", idStr))
-	utils.ResponseSuccess(w, http.StatusOK, "user delete", nil)
-
 }

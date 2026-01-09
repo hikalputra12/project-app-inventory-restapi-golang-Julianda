@@ -84,5 +84,5 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		"status":  true,
 		"message": "Logout successful",
 	})
-	utils.ResponseSuccess(w, http.StatusOK, "delete succes", nil)
+	utils.ResponseSuccess(w, http.StatusOK, "logout succes", nil)
 }

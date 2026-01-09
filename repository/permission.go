@@ -49,5 +49,6 @@ func (permissionRepository *permissionRepository) Allowed(userID int, code strin
 	var allowed bool
 	err := permissionRepository.db.QueryRow(context.Background(), qAllowed, userID, code).Scan(&allowed)
 
+
 	return allowed, err
 }

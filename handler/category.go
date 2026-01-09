@@ -79,7 +79,6 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 		"status":  true,
 		"message": "Create new Category succesfully",
 	})
-	utils.ResponseSuccess(w, http.StatusOK, "user ceated", nil)
 
 }
 
@@ -117,7 +116,6 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 		"status":  true,
 		"message": "Update category succesfully",
 	})
-	utils.ResponseSuccess(w, http.StatusOK, "new category created", nil)
 }
 
 func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
@@ -144,6 +142,5 @@ func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request)
 		"status":  true,
 		"message": "Delete category succesfully ",
 	})
-	utils.ResponseSuccess(w, http.StatusOK, "delete category success", nil)
 
 }
