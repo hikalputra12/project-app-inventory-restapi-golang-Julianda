@@ -16,8 +16,8 @@ type SessionRepo struct {
 type SessionRepoInterface interface {
 	CreateSession(session *model.Session) error
 	RevokeSession(session *model.Session) error
-	ExtendSession(id int, session *model.Session) error
-	IsValid(id int, session *model.Session) (bool, error)
+	ExtendSession(session *model.Session) error
+	IsValid(session *model.Session) (bool, error)
 	GetUserIDBySession(session *model.Session) (int, error)
 }
 
@@ -31,12 +31,12 @@ func NewSessionRepo(db database.PgxIface,
 }
 
 func (r *SessionRepo) CreateSession(session *model.Session) error {
-	query := `INSERT INTO sessions ("session_id", "user_id", expired_at, created_at)
-VALUES ($1, $2, $3, $4)`
+	query := `INSERT INTO sessions ("session_id", "user_id", expired_at, created_at, last_active)
+VALUES ($1, $2, $3, $4, $5)`
 
 	now := time.Now()
 	expired := time.Now().Add(24 * time.Hour)
-	_, err := r.DB.Exec(context.Background(), query, session.SessionID, session.UserID, expired, now)
+	_, err := r.DB.Exec(context.Background(), query, session.SessionID, session.UserID, expired, now, now)
 	if err != nil {
 		r.Logger.Error("Database Query Error: failed insert session uuid to database",
 			zap.Error(err),
@@ -49,7 +49,7 @@ VALUES ($1, $2, $3, $4)`
 	return nil
 }
 
-// revoke Session ( pencabutan session oleh admin) dan pelajari lagi konsepnya
+// untuk pencabutan sesi saat logout
 func (r *SessionRepo) RevokeSession(session *model.Session) error {
 	query := `UPDATE sessions
 			  SET revoked_at=NOW()
@@ -64,10 +64,12 @@ func (r *SessionRepo) RevokeSession(session *model.Session) error {
 	}
 	return nil
 }
-func (r *SessionRepo) ExtendSession(id int, session *model.Session) error {
+func (r *SessionRepo) ExtendSession(session *model.Session) error {
 	query := `UPDATE sessions 
-			SET session_id=$1 WHERE user_id=$2 AND revoked_at is NULL `
-	_, err := r.DB.Exec(context.Background(), query, session.SessionID, session.UserID)
+			SET expired_at=$1, last_active=NOW() WHERE session_id=$2 AND revoked_at is NULL `
+	expired := time.Now().Add(24 * time.Hour)
+	session.ExpiredAt = expired
+	_, err := r.DB.Exec(context.Background(), query, expired, session.SessionID)
 	if err != nil {
 		r.Logger.Error("Database Query Error: failed update session on database",
 			zap.Error(err),
@@ -75,12 +77,13 @@ func (r *SessionRepo) ExtendSession(id int, session *model.Session) error {
 		)
 		return err
 	}
+
 	return nil
 }
 
 // pengecekan valid atau tidak validnya session
-func (r *SessionRepo) IsValid(id int, session *model.Session) (bool, error) {
-	query := `SELECT EXIST(
+func (r *SessionRepo) IsValid(session *model.Session) (bool, error) {
+	query := `SELECT EXISTS(
 			  SELECT 1 FROM sessions WHERE session_id=$1 AND revoked_at is NULL AND expired_at > NOW() )`
 	var valid bool
 	err := r.DB.QueryRow(context.Background(), query, session.SessionID).Scan(&valid)

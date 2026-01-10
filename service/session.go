@@ -14,8 +14,8 @@ type SessionService struct {
 type SessionServiceInterface interface {
 	CreateSession(session *model.Session) error
 	RevokeSession(session *model.Session) error
-	ExtendSession(id int, session *model.Session) error
-	IsValid(id int, session *model.Session) (bool, error)
+	ExtendSession(session *model.Session) error
+	IsValid(session *model.Session) (bool, error)
 	GetUserIDBySession(session *model.Session) (int, error)
 }
 
@@ -48,8 +48,8 @@ func (s *SessionService) RevokeSession(session *model.Session) error {
 	}
 	return nil
 }
-func (s *SessionService) ExtendSession(id int, session *model.Session) error {
-	err := s.repo.SessionRepo.ExtendSession(id, session)
+func (s *SessionService) ExtendSession(session *model.Session) error {
+	err := s.repo.SessionRepo.ExtendSession(session)
 	if err != nil {
 		s.logger.Error("failed extend Session on repository",
 			zap.Error(err),
@@ -58,8 +58,8 @@ func (s *SessionService) ExtendSession(id int, session *model.Session) error {
 	}
 	return nil
 }
-func (s *SessionService) IsValid(id int, session *model.Session) (bool, error) {
-	valid, err := s.repo.SessionRepo.IsValid(id, session)
+func (s *SessionService) IsValid(session *model.Session) (bool, error) {
+	valid, err := s.repo.SessionRepo.IsValid(session)
 	if err != nil {
 		s.logger.Error("failed check valid session Session on repository",
 			zap.Error(err),
