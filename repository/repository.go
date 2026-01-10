@@ -14,6 +14,7 @@ type Repo struct {
 	WarehouseRepo   WarehouseRepoInterface
 	TransactionRepo TransactionRepoInterface
 	ReportRepo      ReportRepoInterface
+	SessionRepo     SessionRepoInterface
 	Permission      PermissionIface
 	Log             *zap.Logger
 }
@@ -27,6 +28,7 @@ func AllRepo(db database.PgxIface, log *zap.Logger) Repo {
 		WarehouseRepo:   NewWarehouseRepo(db, log),
 		TransactionRepo: NewTransactionRepo(db, log),
 		ReportRepo:      NewReportRepo(db, log),
+		SessionRepo:     NewSessionRepo(db, log),
 		Permission:      NewPermissionRepository(db),
 	}
 }

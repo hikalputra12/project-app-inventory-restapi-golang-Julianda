@@ -27,6 +27,6 @@ func AllHandler(service service.Service, log *zap.Logger) Handler {
 		Transaction: NewTransactionHandler(service.TransactionService, log),
 		Report:      NewReportHandler(service.ReportService, log),
 		Warehouse:   NewWarehouseHandler(service.WarehouseService, log),
-		Auth:        NewAuthHandler(service.AuthService, log),
+		Auth:        NewAuthHandler(service.AuthService, service.SessionService, log),
 	}
 }

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"app-inventory/dto"
+	"app-inventory/model"
 	"app-inventory/service"
 	"app-inventory/utils"
 	"encoding/json"
@@ -12,14 +13,16 @@ import (
 )
 
 type AuthHandler struct {
-	AuthService service.AuthServiceInterface
-	Log         *zap.Logger
+	AuthService    service.AuthServiceInterface
+	SessionService service.SessionServiceInterface
+	Log            *zap.Logger
 }
 
-func NewAuthHandler(authHendler service.AuthServiceInterface, log *zap.Logger) AuthHandler {
+func NewAuthHandler(authHendler service.AuthServiceInterface, sessionHandler service.SessionServiceInterface, log *zap.Logger) AuthHandler {
 	return AuthHandler{
-		AuthService: authHendler,
-		Log:         log,
+		AuthService:    authHendler,
+		SessionService: sessionHandler,
+		Log:            log,
 	}
 }
 
@@ -57,14 +60,28 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		HttpOnly: true,
 	})
+
+	//pembuatan uuid session token
+	uuidToken := utils.NewUUID()
+	session := &model.Session{
+		SessionID: uuidToken,
+		UserID:    user.ID,
+	}
+
+	err = h.SessionService.CreateSession(session)
+	if err != nil {
+		h.Log.Error("failed create session on service",
+			zap.Error(err),
+		)
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to proccess login session", nil)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  true,
 		"message": "Login successful",
 	})
-
-	utils.ResponseSuccess(w, http.StatusOK, "login succes", nil)
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +93,20 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   -1,
 		HttpOnly: true,
 	})
+	// 	//pembuatan uuid session token
+	// uuidToken := utils.NewUUID()
+	// revoke := &model.Session{
+	// 	UserID:    user.ID,
+	// }
 
+	// err = h.SessionService.RevokeSession(revoke)
+	// if err != nil {
+	// 	h.Log.Error("failed create session on service",
+	// 		zap.Error(err),
+	// 	)
+	// 	utils.ResponseError(w, http.StatusInternalServerError, "failed to proccess login session", nil)
+	// 	return
+	// }
 	// Return JSON
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -84,5 +114,4 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		"status":  true,
 		"message": "Logout successful",
 	})
-	utils.ResponseSuccess(w, http.StatusOK, "logout succes", nil)
 }

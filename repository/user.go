@@ -157,3 +157,4 @@ func (r *userRepo) FindByEmail(email string) (*model.User, error) {
 
 	return &user, err
 }
+

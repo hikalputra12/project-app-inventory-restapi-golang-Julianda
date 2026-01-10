@@ -16,6 +16,7 @@ type Service struct {
 	RackService        RackServiceInterface
 	WarehouseService   WarehouseServiceInterface
 	ReportService      ReportServiceInterface
+	SessionService     SessionServiceInterface
 	log                *zap.Logger
 }
 
@@ -28,6 +29,7 @@ func AllService(repo repository.Repo, log *zap.Logger) Service {
 		WarehouseService:   NewWarehouseService(repo, log),
 		TransactionService: NewTransactionService(repo, log),
 		ReportService:      NewReportService(repo, log),
+		SessionService:     NewSessionService(repo, log),
 		AuthService:        NewAuthService(repo, log),
 		Permission:         NewPermissionService(repo),
 	}
