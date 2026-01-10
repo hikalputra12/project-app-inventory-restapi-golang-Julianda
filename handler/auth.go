@@ -7,7 +7,6 @@ import (
 	"app-inventory/utils"
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"go.uber.org/zap"
 )
@@ -53,13 +52,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusUnauthorized, "Email atau password salah", nil)
 		return
 	}
-	// cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session",
-		Value:    strconv.Itoa(user.ID),
-		Path:     "/",
-		HttpOnly: true,
-	})
 
 	//pembuatan uuid session token
 	uuidToken := utils.NewUUID()
@@ -67,7 +59,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		SessionID: uuidToken,
 		UserID:    user.ID,
 	}
-
 	err = h.SessionService.CreateSession(session)
 	if err != nil {
 		h.Log.Error("failed create session on service",
@@ -76,6 +67,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		utils.ResponseError(w, http.StatusInternalServerError, "failed to proccess login session", nil)
 		return
 	}
+	expiryTime := 24 * 60 * 60
+	// cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    uuidToken,
+		Path:     "/",
+		MaxAge:   expiryTime,
+		HttpOnly: true,
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -85,7 +86,26 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	// Clear Cookie
+	cookie, err := r.Cookie("session")
+	if err != nil {
+		// Jika cookie tidak ada, anggap saja user sudah logout
+		utils.ResponseError(w, http.StatusUnauthorized, "User tidak terautentikasi", nil)
+		return
+	}
+	//pembuatan revoke saat logout
+	sessionID := cookie.Value
+	revoke := &model.Session{
+		SessionID: sessionID,
+	}
+
+	err = h.SessionService.RevokeSession(revoke)
+	if err != nil {
+		h.Log.Error("failed create session on service",
+			zap.Error(err),
+		)
+		utils.ResponseError(w, http.StatusInternalServerError, "failed to proccess login session", nil)
+		return
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
 		Value:    "",
@@ -93,20 +113,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   -1,
 		HttpOnly: true,
 	})
-	// 	//pembuatan uuid session token
-	// uuidToken := utils.NewUUID()
-	// revoke := &model.Session{
-	// 	UserID:    user.ID,
-	// }
 
-	// err = h.SessionService.RevokeSession(revoke)
-	// if err != nil {
-	// 	h.Log.Error("failed create session on service",
-	// 		zap.Error(err),
-	// 	)
-	// 	utils.ResponseError(w, http.StatusInternalServerError, "failed to proccess login session", nil)
-	// 	return
-	// }
 	// Return JSON
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

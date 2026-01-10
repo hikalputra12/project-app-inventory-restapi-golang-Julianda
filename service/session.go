@@ -16,6 +16,7 @@ type SessionServiceInterface interface {
 	RevokeSession(session *model.Session) error
 	ExtendSession(id int, session *model.Session) error
 	IsValid(id int, session *model.Session) (bool, error)
+	GetUserIDBySession(session *model.Session) (int, error)
 }
 
 // constructor
@@ -66,4 +67,14 @@ func (s *SessionService) IsValid(id int, session *model.Session) (bool, error) {
 		return false, err
 	}
 	return valid, err
+}
+func (s *SessionService) GetUserIDBySession(session *model.Session) (int, error) {
+	userID, err := s.repo.SessionRepo.GetUserIDBySession(session)
+	if err != nil {
+		s.logger.Error("failed extend Session on repository",
+			zap.Error(err),
+		)
+		return 0, err
+	}
+	return userID, nil
 }

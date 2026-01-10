@@ -18,6 +18,7 @@ type SessionRepoInterface interface {
 	RevokeSession(session *model.Session) error
 	ExtendSession(id int, session *model.Session) error
 	IsValid(id int, session *model.Session) (bool, error)
+	GetUserIDBySession(session *model.Session) (int, error)
 }
 
 // constructor
@@ -52,8 +53,8 @@ VALUES ($1, $2, $3, $4)`
 func (r *SessionRepo) RevokeSession(session *model.Session) error {
 	query := `UPDATE sessions
 			  SET revoked_at=NOW()
-			  WHERE session_id=$1 AND revoke_at is NULL`
-	_, err := r.DB.Exec(context.Background(), query, session.UserID)
+			  WHERE session_id=$1 AND revoked_at is NULL`
+	_, err := r.DB.Exec(context.Background(), query, session.SessionID)
 	if err != nil {
 		r.Logger.Error("Database Query Error: failed revoke session on database",
 			zap.Error(err),
@@ -84,4 +85,15 @@ func (r *SessionRepo) IsValid(id int, session *model.Session) (bool, error) {
 	var valid bool
 	err := r.DB.QueryRow(context.Background(), query, session.SessionID).Scan(&valid)
 	return valid, err
+}
+
+func (r *SessionRepo) GetUserIDBySession(session *model.Session) (int, error) {
+	var userID int
+	query := `SELECT user_id FROM sessions WHERE session_id = $1 AND revoked_at IS NULL`
+
+	err := r.DB.QueryRow(context.Background(), query, session.SessionID).Scan(&userID)
+	if err != nil {
+		return 0, err
+	}
+	return userID, nil
 }
