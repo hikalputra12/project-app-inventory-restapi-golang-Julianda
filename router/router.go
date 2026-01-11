@@ -51,6 +51,7 @@ func Apiv1(handler handler.Handler, service service.Service, log *zap.Logger) *c
 	})
 	r.Route("/rack", func(r chi.Router) {
 		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("rack:view")).Get("/", handler.Rack.ListRack)
+		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("rack:view")).Get("/{id}", handler.Rack.GetRackById)
 		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("rack:manage")).Post("/", handler.Rack.CreateRack)
 		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("rack:manage")).Patch("/{id}", handler.Rack.UpdateRack)
 		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("rack:manage")).Delete("/{id}", handler.Rack.DeleteRack)
@@ -58,15 +59,17 @@ func Apiv1(handler handler.Handler, service service.Service, log *zap.Logger) *c
 	})
 	r.Route("/warehouse", func(r chi.Router) {
 		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("warehouse:view")).Get("/", handler.Warehouse.ListWarehouse)
+		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("warehouse:view")).Get("/{id}", handler.Warehouse.GetWarehouseById)
 		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("warehouse:manage")).Post("/", handler.Warehouse.CreateWarehouse)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("warehouse:manage")).Post("/{id}", handler.Warehouse.UpdateWarehouse)
+		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("warehouse:manage")).Patch("/{id}", handler.Warehouse.UpdateWarehouse)
 		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("warehouse:manage")).Delete("/{id}", handler.Warehouse.DeleteWarehouse)
 
 	})
 	r.Route("/transaction", func(r chi.Router) {
 		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("transaction:manage")).Get("/", handler.Transaction.ListTransaction)
+		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("transaction:manage")).Get("/{id}", handler.Transaction.GetTransactionById)
 		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("transaction:manage")).Post("/", handler.Transaction.CreateTransaction)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("transaction:manage")).Post("/{id}", handler.Transaction.UpdateTransaction)
+		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("transaction:manage")).Put("/{id}", handler.Transaction.UpdateTransaction)
 		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("transaction:manage")).Delete("/{id}", handler.Transaction.DeleteTransaction)
 
 	})

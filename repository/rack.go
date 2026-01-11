@@ -18,6 +18,7 @@ type RackRepoInterface interface {
 	CreateRack(Rack *model.Rack) error
 	UpdateRack(id int, Rack *model.Rack) error
 	DeleteRack(id int) error
+	GetRackByID(id int) (*model.Rack, error)
 }
 
 // constructor
@@ -34,7 +35,7 @@ func (r *RackRepo) CreateRack(Rack *model.Rack) error {
 VALUES ($1, $2, $3, $4) RETURNING rack_inventory_id`
 
 	now := time.Now()
-	err := r.DB.QueryRow(context.Background(), query, Rack.Name, Rack.Warehouse_inventory_id, now, now).Scan(&Rack.ID)
+	err := r.DB.QueryRow(context.Background(), query, Rack.Name, Rack.WarehouseInventoryId, now, now).Scan(&Rack.ID)
 	if err != nil {
 		r.Logger.Error("Database Query Error: Gagal create rak",
 			zap.Error(err),
@@ -74,7 +75,7 @@ LIMIT $1 OFFSET $2;`
 	var rack []model.Rack
 	for rows.Next() {
 		var t model.Rack
-		err := rows.Scan(&t.Name, &t.Warehouse_inventory_id)
+		err := rows.Scan(&t.Name, &t.WarehouseInventoryId)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -88,7 +89,7 @@ func (r *RackRepo) UpdateRack(id int, Rack *model.Rack) error {
 	query := `UPDATE rack_inventory
 			SET name=$1,warehouse_inventory_id=$2,updated_at=$3 WHERE rack_inventory_id=$4`
 	now := time.Now()
-	_, err := r.DB.Exec(context.Background(), query, Rack.Name, Rack.Warehouse_inventory_id, now, id)
+	_, err := r.DB.Exec(context.Background(), query, Rack.Name, Rack.WarehouseInventoryId, now, id)
 	if err != nil {
 		r.Logger.Error("Database Query Error: Gagal update rak",
 			zap.Error(err),
@@ -114,4 +115,21 @@ func (r *RackRepo) DeleteRack(id int) error {
 		return err
 	}
 	return nil
+}
+
+// untuk membaca rack berdarsaskan id
+func (r *RackRepo) GetRackByID(id int) (*model.Rack, error) {
+	var rack model.Rack
+	query := `SELECT r.name,r.warehouse_inventory_id,w.name as warehouse_inventory FROM rack_inventory r
+JOIN warehouse_inventory w ON r.warehouse_inventory_id = w.warehouse_inventory_id
+WHERE rack_inventory_id = $1;`
+	err := r.DB.QueryRow(context.Background(), query, id).Scan(&rack.Name, &rack.WarehouseInventoryId, &rack.WarehouseInventory)
+	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal mendapatkan rak berdarsaskan id",
+			zap.Error(err),
+			zap.String("query", query),
+		)
+		return nil, err
+	}
+	return &rack, nil
 }

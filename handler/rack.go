@@ -49,7 +49,7 @@ func (h *RackHandler) ListRack(w http.ResponseWriter, r *http.Request) {
 	for _, item := range rack {
 		response = append(response, dto.RackListResponse{
 			Name:                   item.Name,
-			Warehouse_inventory_id: item.Warehouse_inventory_id,
+			Warehouse_inventory_id: item.WarehouseInventoryId,
 		})
 
 	}
@@ -66,8 +66,8 @@ func (h *RackHandler) CreateRack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newRack := model.Rack{
-		Name:                   req.Name,
-		Warehouse_inventory_id: req.Warehouse_inventory_id,
+		Name:                 req.Name,
+		WarehouseInventoryId: req.Warehouse_inventory_id,
 	}
 	err := h.service.CreateRack(&newRack)
 	if err != nil {
@@ -109,8 +109,8 @@ func (h *RackHandler) UpdateRack(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newRack := model.Rack{
-		Name:                   req.Name,
-		Warehouse_inventory_id: req.Warehouse_inventory_id,
+		Name:                 req.Name,
+		WarehouseInventoryId: req.Warehouse_inventory_id,
 	}
 	err = h.service.UpdateRack(id, &newRack)
 	if err != nil {
@@ -152,4 +152,26 @@ func (h *RackHandler) DeleteRack(w http.ResponseWriter, r *http.Request) {
 		"message": "Delete rack succesfully ",
 	})
 
+}
+
+// get rack by id
+func (h *RackHandler) GetRackById(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	RackID, _ := strconv.Atoi(id)
+
+	// Get data Racks form service all Racks
+	rack, err := h.service.GetRackById(RackID)
+	if err != nil {
+		h.logger.Error("failed get Rack by id on service",
+			zap.Error(err),
+		)
+		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+		return
+	}
+	var response dto.RackByIdResponse
+	response = dto.RackByIdResponse{
+		Name:               rack.Name,
+		WarehouseInventory: rack.WarehouseInventory,
+	}
+	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
 }

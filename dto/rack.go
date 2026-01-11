@@ -13,3 +13,9 @@ type UpdateRackRequest struct {
 	Name                   string `json:"name" validate:"required,min=6"`
 	Warehouse_inventory_id int    `json:"warehouse_inventory_id" validate:"required,gte=0"`
 }
+
+type RackByIdResponse struct {
+	Name                 string `json:"name"`
+	WarehouseInventoryId int    `json:"-"`
+	WarehouseInventory   string `json:"warehouse_inventory"`
+}

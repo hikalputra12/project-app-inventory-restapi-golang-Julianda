@@ -18,6 +18,7 @@ type WarehouseRepoInterface interface {
 	CreateWarehouse(Warehouse *model.Warehouse) error
 	UpdateWarehouse(id int, Warehouse *model.Warehouse) error
 	DeleteWarehouse(id int) error
+	GetWarehouseByID(id int) (*model.Warehouse, error)
 }
 
 // constructor
@@ -30,11 +31,11 @@ func NewWarehouseRepo(db database.PgxIface,
 }
 
 func (r *WarehouseRepo) CreateWarehouse(Warehouse *model.Warehouse) error {
-	query := `INSERT INTO warehouse_inventory ("name", "user_id", created_at, updated_at)
+	query := `INSERT INTO warehouse_inventory ("name", "location", created_at, updated_at)
 VALUES ($1, $2, $3, $4) RETURNING warehouse_inventory_id`
 
 	now := time.Now()
-	err := r.DB.QueryRow(context.Background(), query, Warehouse.Name, Warehouse.User_id, now, now).Scan(&Warehouse.ID)
+	err := r.DB.QueryRow(context.Background(), query, Warehouse.Name, Warehouse.Location, now, now).Scan(&Warehouse.ID)
 	if err != nil {
 		r.Logger.Error("failed to insert a new warehouse to database",
 			zap.Error(err),
@@ -86,9 +87,9 @@ LIMIT $1 OFFSET $2;`
 // update Warehouse
 func (r *WarehouseRepo) UpdateWarehouse(id int, Warehouse *model.Warehouse) error {
 	query := `UPDATE Warehouse_inventory
-			SET name=$1,user_id=$2,updated_at=$3 WHERE warehouse_inventory_id=$4`
+			SET name=$1,location=$2,updated_at=$3 WHERE warehouse_inventory_id=$4`
 	now := time.Now()
-	_, err := r.DB.Exec(context.Background(), query, Warehouse.Name, Warehouse.User_id, now, id)
+	_, err := r.DB.Exec(context.Background(), query, Warehouse.Name, Warehouse.Location, now, id)
 	if err != nil {
 		r.Logger.Error("Database Query Error: Gagal mengubah jenis gudang",
 			zap.Error(err),
@@ -114,4 +115,20 @@ func (r *WarehouseRepo) DeleteWarehouse(id int) error {
 		return err
 	}
 	return nil
+}
+
+// untuk membaca warehouse berdarsaskan id
+func (r *WarehouseRepo) GetWarehouseByID(id int) (*model.Warehouse, error) {
+	var warehouse model.Warehouse
+	query := `SELECT name, location FROM warehouse_inventory 
+WHERE warehouse_inventory_id = $1;`
+	err := r.DB.QueryRow(context.Background(), query, id).Scan(&warehouse.Name, &warehouse.Location)
+	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal mendapatkan rak berdarsaskan id",
+			zap.Error(err),
+			zap.String("query", query),
+		)
+		return nil, err
+	}
+	return &warehouse, nil
 }

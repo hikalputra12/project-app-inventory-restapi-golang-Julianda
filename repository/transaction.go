@@ -19,6 +19,7 @@ type TransactionRepoInterface interface {
 	CreateTransaction(Transaction *model.Transaction) error
 	UpdateTransaction(id int, Transaction *model.Transaction) error
 	DeleteTransaction(id int) error
+	GetTransactionById(id int) (*model.Transaction, error)
 }
 
 // constructor
@@ -206,4 +207,21 @@ func (r *TransactionRepo) DeleteTransaction(id int) error {
 		return err
 	}
 	return nil
+}
+
+// untuk membaca sales_item berdarsaskan id
+func (r *TransactionRepo) GetTransactionById(id int) (*model.Transaction, error) {
+	var transaction model.Transaction
+	query := `SELECT i.name, s.quantity, s.price FROM sales_item s
+	JOIN inventories i ON s.inventory_id = i.inventory_id
+WHERE sales_item_id = $1;`
+	err := r.DB.QueryRow(context.Background(), query, id).Scan(&transaction.Name, &transaction.Quantity, &transaction.Price)
+	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal mendapatkan sale item  berdarsaskan id",
+			zap.Error(err),
+			zap.String("query", query),
+		)
+		return nil, err
+	}
+	return &transaction, nil
 }

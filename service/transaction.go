@@ -18,6 +18,7 @@ type TransactionServiceInterface interface {
 	CreateTransaction(Transaction *model.Transaction) error
 	UpdateTransaction(id int, Transaction *model.Transaction) error
 	DeleteTransaction(id int) error
+	GetTransactionById(id int) (*model.Transaction, error)
 }
 
 // constructor
@@ -72,4 +73,15 @@ func (s *TransactionService) DeleteTransaction(id int) error {
 		return err
 	}
 	return nil
+}
+
+// get sale item by id
+func (s *TransactionService) GetTransactionById(id int) (*model.Transaction, error) {
+	transaction, err := s.repo.TransactionRepo.GetTransactionById(id)
+	if err != nil {
+		s.logger.Error("failed to connect service to read sales item by id", zap.Error(err))
+		return nil, err
+	}
+
+	return transaction, nil
 }

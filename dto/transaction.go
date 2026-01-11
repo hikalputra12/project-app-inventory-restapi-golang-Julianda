@@ -16,3 +16,8 @@ type TransactionListResponse struct {
 type UpdateTransactionRequest struct {
 	Quantity int `json:"quantity" validate:"required,gte=0"`
 }
+type TransactionByIdResponse struct {
+	Name     string `json:"name"`
+	Quantity int    `json:"quantity"`
+	Price    int    `json:"price"`
+}

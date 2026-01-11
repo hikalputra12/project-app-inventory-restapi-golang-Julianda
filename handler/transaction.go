@@ -166,3 +166,26 @@ func (h *TransactionHandler) DeleteTransaction(w http.ResponseWriter, r *http.Re
 	})
 
 }
+
+// get sale item by id
+func (h *TransactionHandler) GetTransactionById(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	transactionID, _ := strconv.Atoi(id)
+
+	// Get data Racks form service all Racks
+	transaction, err := h.service.GetTransactionById(transactionID)
+	if err != nil {
+		h.logger.Error("failed get sales item by id on service",
+			zap.Error(err),
+		)
+		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+		return
+	}
+	var response dto.TransactionByIdResponse
+	response = dto.TransactionByIdResponse{
+		Name:     transaction.Name,
+		Quantity: transaction.Quantity,
+		Price:    transaction.Price,
+	}
+	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
+}

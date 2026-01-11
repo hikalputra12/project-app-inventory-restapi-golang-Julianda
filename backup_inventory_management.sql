@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ZCDUIrD5Axr092h79mhTSnWhf8uHsgEZuzmsywNWQ8tkAVeJ7dVdSxeDZizN2yy
+\restrict PR5Lv13QB9IQkXtlsm5WCjNX2Jv5anIYPxKG4fOVnWnPW8b7ytGLSvgfyFpahXb
 
 -- Dumped from database version 16.11
 -- Dumped by pg_dump version 16.11
@@ -336,11 +336,11 @@ ALTER SEQUENCE public.users_user_id_seq OWNED BY public.users.user_id;
 
 CREATE TABLE public.warehouse_inventory (
     warehouse_inventory_id integer NOT NULL,
-    user_id integer,
     name character varying(255),
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
-    deleted_at timestamp without time zone
+    deleted_at timestamp without time zone,
+    location character varying(100)
 );
 
 
@@ -429,11 +429,11 @@ ALTER TABLE ONLY public.warehouse_inventory ALTER COLUMN warehouse_inventory_id 
 --
 
 COPY public.category_inventory (category_inventory_id, rack_inventory_id, name, created_at, updated_at, deleted_at) FROM stdin;
-1	1	Laptop & PC	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N
 2	1	Smartphone	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N
 3	2	Kabel & Charger	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N
 4	3	Stationary	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N
 5	3	peralatan bayi	2026-01-05 04:43:10.377529	2026-01-05 04:43:10.377529	\N
+1	3	Laptop & PC	2026-01-02 01:48:20.022833	2026-01-11 21:37:45.740816	\N
 \.
 
 
@@ -444,9 +444,11 @@ COPY public.category_inventory (category_inventory_id, rack_inventory_id, name, 
 COPY public.inventories (inventory_id, category_inventory_id, name, price, stock, created_at, updated_at, deleted_at) FROM stdin;
 2	1	Asus ROG Zephyrus	25000000	5	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N
 3	2	iPhone 15	18000000	20	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N
-4	2	Samsung S24 Ultra	19000000	15	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N
 5	3	Kabel USB-C Baseus	50000	100	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N
 1	1	MacBook Pro M2	20000000	4	2026-01-02 01:48:20.022833	2026-01-05 22:46:19.949162	\N
+8	1	xiaomi2pro	110000	10	2026-01-11 20:31:03.084821	2026-01-11 20:31:03.084821	\N
+9	1	xiaomi2pro	110000	10	2026-01-11 21:13:45.422267	2026-01-11 21:13:45.422267	\N
+4	2	Samsung S24 Ultra	19000000	120	2026-01-02 01:48:20.022833	2026-01-11 21:13:56.754061	\N
 \.
 
 
@@ -478,9 +480,9 @@ COPY public.permissions (id, code, description) FROM stdin;
 --
 
 COPY public.rack_inventory (rack_inventory_id, name, created_at, updated_at, deleted_at, warehouse_inventory_id) FROM stdin;
-1	Rak A - Elektronik	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N	1
 2	Rak B - Aksesoris	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N	1
 3	Rak C - Umum	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N	2
+1	Rak A - Elektronik	2026-01-02 01:48:20.022833	2026-01-11 22:52:39.228685	\N	2
 \.
 
 
@@ -556,7 +558,11 @@ COPY public.sales_item (sales_item_id, user_id, inventory_id, quantity, price, c
 
 COPY public.sessions (session_id, user_id, expired_at, revoked_at, created_at, last_active) FROM stdin;
 e47f9e6e-c45b-438c-9499-aadc2ced87f6	2	2026-01-12 03:48:25.472264+08	2026-01-11 03:49:47.909929+08	2026-01-11 00:44:57.855125	2026-01-11 03:48:25.472716
-aeb416c0-aa34-4050-b836-86cf3857d851	2	2026-01-12 03:50:14.228475+08	\N	2026-01-11 03:50:14.228475	2026-01-11 03:50:14.228475
+aeb416c0-aa34-4050-b836-86cf3857d851	2	2026-01-12 16:48:53.653578+08	2026-01-11 16:49:07.334506+08	2026-01-11 03:50:14.228475	2026-01-11 16:48:53.65417
+0b3a9696-9633-4974-bdf6-eafb3bb75d45	2	2026-01-12 17:56:53.225189+08	2026-01-11 18:06:15.057744+08	2026-01-11 17:52:59.045144	2026-01-11 17:56:53.225941
+07ae9122-40e5-4a7a-84ae-d01831eb3a4d	9	2026-01-12 18:06:51.250938+08	2026-01-11 18:07:12.340074+08	2026-01-11 18:06:51.250938	2026-01-11 18:06:51.250938
+2613a98f-6d4f-46fe-bd70-d7bbf573d846	2	2026-01-12 18:08:48.532499+08	\N	2026-01-11 18:08:48.532499	2026-01-11 18:08:48.532499
+b22d29e5-38cd-415b-a408-14df7404b1e3	2	2026-01-12 23:53:01.271085+08	\N	2026-01-11 18:13:45.250554	2026-01-11 23:53:01.271156
 \.
 
 
@@ -573,9 +579,11 @@ COPY public.user_permissions (user_id, permission_id, effect) FROM stdin;
 --
 
 COPY public.users (user_id, name, email, password_hash, created_at, updated_at, deleted_at, role_id) FROM stdin;
-1	Julianda Putra	julianda@admin.com	hashed_secret_pass_123	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N	1
-2	Budi Santoso	budi@gudang.com	hashed_secret_pass_456	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N	2
-3	Siti Aminah	siti@kasir.com	hashed_secret_pass_789	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N	3
+9	cahya	cahya123@gmail.com	$2a$14$fk1rhXM6Z3joh.bq2zdTMOM3GK8Bue19AD1clCTGAYkhHIvbisoN6	2026-01-11 17:56:54.726332	2026-01-11 17:56:54.726332	\N	3
+8	hendry	hendry@gmail.com	$2a$14$M1IgomCUpWNCe08xpAUA8Ov4WGG0D3bDIjVIo2lYlD.XrHPqUTdL6	2026-01-11 17:53:32.102882	2026-01-11 17:53:32.102882	\N	3
+1	Julianda Putra	julianda@admin.com	$2a$14$Y.uIs6s/LQ3d.uxZRLlhtOhVexO.WrHdWitInLVbWEO2s2vaFVqca	2026-01-02 01:48:20.022833	2026-01-11 20:17:48.840147	\N	1
+2	Budi Santoso	budi@gudang.com	$2a$14$vzqNsJBhd0Tk5v3MLpg0oelT63jPxu1LltMw9jmZMprLQuyvPCOHa	2026-01-02 01:48:20.022833	2026-01-11 20:18:26.398357	\N	2
+3	Siti Aminah	siti@kasir.com	$2a$14$BPBeFnb1NGra9rlszLPtFeIzwY3crzft/9yb2Uuy73wO7mxM.CWLG	2026-01-02 01:48:20.022833	2026-01-11 20:18:45.397801	\N	3
 \.
 
 
@@ -583,9 +591,10 @@ COPY public.users (user_id, name, email, password_hash, created_at, updated_at, 
 -- Data for Name: warehouse_inventory; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.warehouse_inventory (warehouse_inventory_id, user_id, name, created_at, updated_at, deleted_at) FROM stdin;
-1	1	Gudang Utama Makassar	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N
-2	2	Gudang Cabang Jakarta	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N
+COPY public.warehouse_inventory (warehouse_inventory_id, name, created_at, updated_at, deleted_at, location) FROM stdin;
+1	Gudang Utama Makassar	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N	Makassar, kecamatan panakukang
+2	Gudang Cabang Jakarta	2026-01-02 01:48:20.022833	2026-01-02 01:48:20.022833	\N	Jakarta, Bundaran HI
+4	Gudang Bau-Bau	2026-01-11 23:36:25.832464	2026-01-11 23:39:46.862765	\N	bukit wolio indah kecamatan wolio, Kota Bau-Bau
 \.
 
 
@@ -600,7 +609,7 @@ SELECT pg_catalog.setval('public.category_inventory_category_inventory_id_seq', 
 -- Name: inventories_inventory_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.inventories_inventory_id_seq', 7, true);
+SELECT pg_catalog.setval('public.inventories_inventory_id_seq', 9, true);
 
 
 --
@@ -635,14 +644,14 @@ SELECT pg_catalog.setval('public.sales_item_sales_item_id_seq', 4, true);
 -- Name: users_user_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.users_user_id_seq', 7, true);
+SELECT pg_catalog.setval('public.users_user_id_seq', 9, true);
 
 
 --
 -- Name: warehouse_inventory_warehouse_inventory_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.warehouse_inventory_warehouse_inventory_id_seq', 3, true);
+SELECT pg_catalog.setval('public.warehouse_inventory_warehouse_inventory_id_seq', 4, true);
 
 
 --
@@ -830,16 +839,8 @@ ALTER TABLE ONLY public.users
 
 
 --
--- Name: warehouse_inventory warehouse_inventory_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.warehouse_inventory
-    ADD CONSTRAINT warehouse_inventory_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id);
-
-
---
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ZCDUIrD5Axr092h79mhTSnWhf8uHsgEZuzmsywNWQ8tkAVeJ7dVdSxeDZizN2yy
+\unrestrict PR5Lv13QB9IQkXtlsm5WCjNX2Jv5anIYPxKG4fOVnWnPW8b7ytGLSvgfyFpahXb
 

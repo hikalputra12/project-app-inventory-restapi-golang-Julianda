@@ -64,15 +64,10 @@ func (h *WarehouseHandler) CreateWarehouse(w http.ResponseWriter, r *http.Reques
 		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
-	//pengambilan id melalui cookie
-	cookie, _ := r.Cookie("session")
-
-	// 4. Konversi ke Integer (jika ID Anda berupa angka)
-	user_id, _ := strconv.Atoi(cookie.Value)
 
 	newWarehouse := model.Warehouse{
-		Name:    req.Name,
-		User_id: user_id,
+		Name:     req.Name,
+		Location: req.Location,
 	}
 	err := h.service.CreateWarehouse(&newWarehouse)
 	if err != nil {
@@ -108,20 +103,14 @@ func (h *WarehouseHandler) UpdateWarehouse(w http.ResponseWriter, r *http.Reques
 		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
 		return
 	}
-	//pengambilan id melalui cookie
-	cookie, _ := r.Cookie("session")
-
-	// 4. Konversi ke Integer (jika ID Anda berupa angka)
-	userId, _ := strconv.Atoi(cookie.Value)
 
 	newWarehouse := model.Warehouse{
-		Name:    req.Name,
-		User_id: userId,
+		Name:     req.Name,
+		Location: req.Location,
 	}
 	err = h.service.UpdateWarehouse(id, &newWarehouse)
 	if err != nil {
 		h.logger.Error("failed update warehouse on service",
-			zap.String("user_id", idStr),
 			zap.Error(err),
 		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
@@ -149,7 +138,7 @@ func (h *WarehouseHandler) DeleteWarehouse(w http.ResponseWriter, r *http.Reques
 	err = h.service.DeleteWarehouse(id)
 	if err != nil {
 		h.logger.Error("failed delete warehouse on service",
-			zap.String("user_id", idStr),
+			zap.String("warehouse_id", idStr),
 			zap.Error(err),
 		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
@@ -162,4 +151,26 @@ func (h *WarehouseHandler) DeleteWarehouse(w http.ResponseWriter, r *http.Reques
 		"message": "Delete user succesfully",
 	})
 
+}
+
+// get warehouse by id
+func (h *WarehouseHandler) GetWarehouseById(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	WarehouseID, _ := strconv.Atoi(id)
+
+	// Get data Racks form service all Racks
+	warehouse, err := h.service.GetWarehouseById(WarehouseID)
+	if err != nil {
+		h.logger.Error("failed get warehouse by id on service",
+			zap.Error(err),
+		)
+		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+		return
+	}
+	var response dto.WarehouseByIdResponse
+	response = dto.WarehouseByIdResponse{
+		Name:     warehouse.Name,
+		Location: warehouse.Location,
+	}
+	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
 }

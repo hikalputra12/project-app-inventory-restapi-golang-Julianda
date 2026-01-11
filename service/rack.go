@@ -18,6 +18,7 @@ type RackServiceInterface interface {
 	CreateRack(Rack *model.Rack) error
 	UpdateRack(id int, Rack *model.Rack) error
 	DeleteRack(id int) error
+	GetRackById(id int) (*model.Rack, error)
 }
 
 // constructor
@@ -54,9 +55,25 @@ func (s *RackService) CreateRack(Rack *model.Rack) error {
 }
 
 func (s *RackService) UpdateRack(id int, Rack *model.Rack) error {
-	err := s.repo.RackRepo.UpdateRack(id, Rack)
+	getRack, err := s.repo.RackRepo.GetRackByID(id)
 	if err != nil {
-		s.logger.Error("failed upadate rack on repository",
+		return err
+	}
+
+	if Rack.Name != "" {
+		getRack.Name = Rack.Name
+	}
+	if Rack.WarehouseInventoryId != 0 {
+		getRack.WarehouseInventoryId = Rack.WarehouseInventoryId
+	}
+
+	NewRackUpdate := &model.Rack{
+		Name:                 getRack.Name,
+		WarehouseInventoryId: getRack.WarehouseInventoryId,
+	}
+	err = s.repo.RackRepo.UpdateRack(id, NewRackUpdate)
+	if err != nil {
+		s.logger.Error("failed update rack on repository",
 			zap.Error(err),
 		)
 		return err
@@ -72,4 +89,15 @@ func (s *RackService) DeleteRack(id int) error {
 		return err
 	}
 	return nil
+}
+
+// get rackby id
+func (s *RackService) GetRackById(id int) (*model.Rack, error) {
+	rack, err := s.repo.RackRepo.GetRackByID(id)
+	if err != nil {
+		s.logger.Error("failed to connect service to read rack by id", zap.Error(err))
+		return nil, err
+	}
+
+	return rack, nil
 }
