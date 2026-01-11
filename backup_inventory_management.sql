@@ -2,12 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict xUhOgD4mfevFD1adJRww5NGPlxqkwx3J26HXLATagXWQ4Gs9WLwPV8D7tMzcmY3
+\restrict ZCDUIrD5Axr092h79mhTSnWhf8uHsgEZuzmsywNWQ8tkAVeJ7dVdSxeDZizN2yy
 
 -- Dumped from database version 16.11
 -- Dumped by pg_dump version 16.11
-
--- Started on 2026-01-06 01:35:15 WITA
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -25,7 +23,6 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- TOC entry 222 (class 1259 OID 18989)
 -- Name: category_inventory; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -42,7 +39,6 @@ CREATE TABLE public.category_inventory (
 ALTER TABLE public.category_inventory OWNER TO postgres;
 
 --
--- TOC entry 221 (class 1259 OID 18988)
 -- Name: category_inventory_category_inventory_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -58,8 +54,6 @@ CREATE SEQUENCE public.category_inventory_category_inventory_id_seq
 ALTER SEQUENCE public.category_inventory_category_inventory_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4570 (class 0 OID 0)
--- Dependencies: 221
 -- Name: category_inventory_category_inventory_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -67,7 +61,6 @@ ALTER SEQUENCE public.category_inventory_category_inventory_id_seq OWNED BY publ
 
 
 --
--- TOC entry 224 (class 1259 OID 18998)
 -- Name: inventories; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -86,7 +79,6 @@ CREATE TABLE public.inventories (
 ALTER TABLE public.inventories OWNER TO postgres;
 
 --
--- TOC entry 223 (class 1259 OID 18997)
 -- Name: inventories_inventory_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -102,8 +94,6 @@ CREATE SEQUENCE public.inventories_inventory_id_seq
 ALTER SEQUENCE public.inventories_inventory_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4571 (class 0 OID 0)
--- Dependencies: 223
 -- Name: inventories_inventory_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -111,7 +101,6 @@ ALTER SEQUENCE public.inventories_inventory_id_seq OWNED BY public.inventories.i
 
 
 --
--- TOC entry 230 (class 1259 OID 19077)
 -- Name: permissions; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -125,7 +114,6 @@ CREATE TABLE public.permissions (
 ALTER TABLE public.permissions OWNER TO postgres;
 
 --
--- TOC entry 229 (class 1259 OID 19076)
 -- Name: permissions_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -141,8 +129,6 @@ CREATE SEQUENCE public.permissions_id_seq
 ALTER SEQUENCE public.permissions_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4572 (class 0 OID 0)
--- Dependencies: 229
 -- Name: permissions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -150,7 +136,6 @@ ALTER SEQUENCE public.permissions_id_seq OWNED BY public.permissions.id;
 
 
 --
--- TOC entry 220 (class 1259 OID 18980)
 -- Name: rack_inventory; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -167,7 +152,6 @@ CREATE TABLE public.rack_inventory (
 ALTER TABLE public.rack_inventory OWNER TO postgres;
 
 --
--- TOC entry 219 (class 1259 OID 18979)
 -- Name: rack_inventory_rack_inventory_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -183,8 +167,6 @@ CREATE SEQUENCE public.rack_inventory_rack_inventory_id_seq
 ALTER SEQUENCE public.rack_inventory_rack_inventory_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4573 (class 0 OID 0)
--- Dependencies: 219
 -- Name: rack_inventory_rack_inventory_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -192,7 +174,6 @@ ALTER SEQUENCE public.rack_inventory_rack_inventory_id_seq OWNED BY public.rack_
 
 
 --
--- TOC entry 231 (class 1259 OID 19087)
 -- Name: role_permissions; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -205,7 +186,6 @@ CREATE TABLE public.role_permissions (
 ALTER TABLE public.role_permissions OWNER TO postgres;
 
 --
--- TOC entry 228 (class 1259 OID 19061)
 -- Name: roles; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -219,7 +199,6 @@ CREATE TABLE public.roles (
 ALTER TABLE public.roles OWNER TO postgres;
 
 --
--- TOC entry 227 (class 1259 OID 19060)
 -- Name: roles_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -235,8 +214,6 @@ CREATE SEQUENCE public.roles_id_seq
 ALTER SEQUENCE public.roles_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4574 (class 0 OID 0)
--- Dependencies: 227
 -- Name: roles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -244,7 +221,6 @@ ALTER SEQUENCE public.roles_id_seq OWNED BY public.roles.id;
 
 
 --
--- TOC entry 226 (class 1259 OID 19017)
 -- Name: sales_item; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -263,7 +239,6 @@ CREATE TABLE public.sales_item (
 ALTER TABLE public.sales_item OWNER TO postgres;
 
 --
--- TOC entry 225 (class 1259 OID 19016)
 -- Name: sales_item_sales_item_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -279,8 +254,6 @@ CREATE SEQUENCE public.sales_item_sales_item_id_seq
 ALTER SEQUENCE public.sales_item_sales_item_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4575 (class 0 OID 0)
--- Dependencies: 225
 -- Name: sales_item_sales_item_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -288,7 +261,22 @@ ALTER SEQUENCE public.sales_item_sales_item_id_seq OWNED BY public.sales_item.sa
 
 
 --
--- TOC entry 232 (class 1259 OID 19118)
+-- Name: sessions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.sessions (
+    session_id uuid NOT NULL,
+    user_id integer,
+    expired_at timestamp with time zone NOT NULL,
+    revoked_at timestamp with time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    last_active timestamp without time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.sessions OWNER TO postgres;
+
+--
 -- Name: user_permissions; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -303,7 +291,6 @@ CREATE TABLE public.user_permissions (
 ALTER TABLE public.user_permissions OWNER TO postgres;
 
 --
--- TOC entry 216 (class 1259 OID 18958)
 -- Name: users; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -322,7 +309,6 @@ CREATE TABLE public.users (
 ALTER TABLE public.users OWNER TO postgres;
 
 --
--- TOC entry 215 (class 1259 OID 18957)
 -- Name: users_user_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -338,8 +324,6 @@ CREATE SEQUENCE public.users_user_id_seq
 ALTER SEQUENCE public.users_user_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4576 (class 0 OID 0)
--- Dependencies: 215
 -- Name: users_user_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -347,7 +331,6 @@ ALTER SEQUENCE public.users_user_id_seq OWNED BY public.users.user_id;
 
 
 --
--- TOC entry 218 (class 1259 OID 18971)
 -- Name: warehouse_inventory; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -364,7 +347,6 @@ CREATE TABLE public.warehouse_inventory (
 ALTER TABLE public.warehouse_inventory OWNER TO postgres;
 
 --
--- TOC entry 217 (class 1259 OID 18970)
 -- Name: warehouse_inventory_warehouse_inventory_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -380,8 +362,6 @@ CREATE SEQUENCE public.warehouse_inventory_warehouse_inventory_id_seq
 ALTER SEQUENCE public.warehouse_inventory_warehouse_inventory_id_seq OWNER TO postgres;
 
 --
--- TOC entry 4577 (class 0 OID 0)
--- Dependencies: 217
 -- Name: warehouse_inventory_warehouse_inventory_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -389,7 +369,6 @@ ALTER SEQUENCE public.warehouse_inventory_warehouse_inventory_id_seq OWNED BY pu
 
 
 --
--- TOC entry 4356 (class 2604 OID 18992)
 -- Name: category_inventory category_inventory_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -397,7 +376,6 @@ ALTER TABLE ONLY public.category_inventory ALTER COLUMN category_inventory_id SE
 
 
 --
--- TOC entry 4359 (class 2604 OID 19001)
 -- Name: inventories inventory_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -405,7 +383,6 @@ ALTER TABLE ONLY public.inventories ALTER COLUMN inventory_id SET DEFAULT nextva
 
 
 --
--- TOC entry 4367 (class 2604 OID 19080)
 -- Name: permissions id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -413,7 +390,6 @@ ALTER TABLE ONLY public.permissions ALTER COLUMN id SET DEFAULT nextval('public.
 
 
 --
--- TOC entry 4353 (class 2604 OID 18983)
 -- Name: rack_inventory rack_inventory_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -421,7 +397,6 @@ ALTER TABLE ONLY public.rack_inventory ALTER COLUMN rack_inventory_id SET DEFAUL
 
 
 --
--- TOC entry 4366 (class 2604 OID 19064)
 -- Name: roles id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -429,7 +404,6 @@ ALTER TABLE ONLY public.roles ALTER COLUMN id SET DEFAULT nextval('public.roles_
 
 
 --
--- TOC entry 4363 (class 2604 OID 19020)
 -- Name: sales_item sales_item_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -437,7 +411,6 @@ ALTER TABLE ONLY public.sales_item ALTER COLUMN sales_item_id SET DEFAULT nextva
 
 
 --
--- TOC entry 4347 (class 2604 OID 18961)
 -- Name: users user_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -445,7 +418,6 @@ ALTER TABLE ONLY public.users ALTER COLUMN user_id SET DEFAULT nextval('public.u
 
 
 --
--- TOC entry 4350 (class 2604 OID 18974)
 -- Name: warehouse_inventory warehouse_inventory_id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -453,8 +425,6 @@ ALTER TABLE ONLY public.warehouse_inventory ALTER COLUMN warehouse_inventory_id 
 
 
 --
--- TOC entry 4554 (class 0 OID 18989)
--- Dependencies: 222
 -- Data for Name: category_inventory; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -468,8 +438,6 @@ COPY public.category_inventory (category_inventory_id, rack_inventory_id, name, 
 
 
 --
--- TOC entry 4556 (class 0 OID 18998)
--- Dependencies: 224
 -- Data for Name: inventories; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -483,8 +451,6 @@ COPY public.inventories (inventory_id, category_inventory_id, name, price, stock
 
 
 --
--- TOC entry 4562 (class 0 OID 19077)
--- Dependencies: 230
 -- Data for Name: permissions; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -508,8 +474,6 @@ COPY public.permissions (id, code, description) FROM stdin;
 
 
 --
--- TOC entry 4552 (class 0 OID 18980)
--- Dependencies: 220
 -- Data for Name: rack_inventory; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -521,8 +485,6 @@ COPY public.rack_inventory (rack_inventory_id, name, created_at, updated_at, del
 
 
 --
--- TOC entry 4563 (class 0 OID 19087)
--- Dependencies: 231
 -- Data for Name: role_permissions; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -567,8 +529,6 @@ COPY public.role_permissions (role_id, permission_id) FROM stdin;
 
 
 --
--- TOC entry 4560 (class 0 OID 19061)
--- Dependencies: 228
 -- Data for Name: roles; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -580,8 +540,6 @@ COPY public.roles (id, name, description) FROM stdin;
 
 
 --
--- TOC entry 4558 (class 0 OID 19017)
--- Dependencies: 226
 -- Data for Name: sales_item; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -593,8 +551,16 @@ COPY public.sales_item (sales_item_id, user_id, inventory_id, quantity, price, c
 
 
 --
--- TOC entry 4564 (class 0 OID 19118)
--- Dependencies: 232
+-- Data for Name: sessions; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.sessions (session_id, user_id, expired_at, revoked_at, created_at, last_active) FROM stdin;
+e47f9e6e-c45b-438c-9499-aadc2ced87f6	2	2026-01-12 03:48:25.472264+08	2026-01-11 03:49:47.909929+08	2026-01-11 00:44:57.855125	2026-01-11 03:48:25.472716
+aeb416c0-aa34-4050-b836-86cf3857d851	2	2026-01-12 03:50:14.228475+08	\N	2026-01-11 03:50:14.228475	2026-01-11 03:50:14.228475
+\.
+
+
+--
 -- Data for Name: user_permissions; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -603,8 +569,6 @@ COPY public.user_permissions (user_id, permission_id, effect) FROM stdin;
 
 
 --
--- TOC entry 4548 (class 0 OID 18958)
--- Dependencies: 216
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -616,8 +580,6 @@ COPY public.users (user_id, name, email, password_hash, created_at, updated_at, 
 
 
 --
--- TOC entry 4550 (class 0 OID 18971)
--- Dependencies: 218
 -- Data for Name: warehouse_inventory; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -628,8 +590,6 @@ COPY public.warehouse_inventory (warehouse_inventory_id, user_id, name, created_
 
 
 --
--- TOC entry 4578 (class 0 OID 0)
--- Dependencies: 221
 -- Name: category_inventory_category_inventory_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -637,8 +597,6 @@ SELECT pg_catalog.setval('public.category_inventory_category_inventory_id_seq', 
 
 
 --
--- TOC entry 4579 (class 0 OID 0)
--- Dependencies: 223
 -- Name: inventories_inventory_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -646,8 +604,6 @@ SELECT pg_catalog.setval('public.inventories_inventory_id_seq', 7, true);
 
 
 --
--- TOC entry 4580 (class 0 OID 0)
--- Dependencies: 229
 -- Name: permissions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -655,8 +611,6 @@ SELECT pg_catalog.setval('public.permissions_id_seq', 6, true);
 
 
 --
--- TOC entry 4581 (class 0 OID 0)
--- Dependencies: 219
 -- Name: rack_inventory_rack_inventory_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -664,8 +618,6 @@ SELECT pg_catalog.setval('public.rack_inventory_rack_inventory_id_seq', 4, true)
 
 
 --
--- TOC entry 4582 (class 0 OID 0)
--- Dependencies: 227
 -- Name: roles_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -673,8 +625,6 @@ SELECT pg_catalog.setval('public.roles_id_seq', 3, true);
 
 
 --
--- TOC entry 4583 (class 0 OID 0)
--- Dependencies: 225
 -- Name: sales_item_sales_item_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -682,8 +632,6 @@ SELECT pg_catalog.setval('public.sales_item_sales_item_id_seq', 4, true);
 
 
 --
--- TOC entry 4584 (class 0 OID 0)
--- Dependencies: 215
 -- Name: users_user_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -691,8 +639,6 @@ SELECT pg_catalog.setval('public.users_user_id_seq', 7, true);
 
 
 --
--- TOC entry 4585 (class 0 OID 0)
--- Dependencies: 217
 -- Name: warehouse_inventory_warehouse_inventory_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -700,7 +646,6 @@ SELECT pg_catalog.setval('public.warehouse_inventory_warehouse_inventory_id_seq'
 
 
 --
--- TOC entry 4378 (class 2606 OID 18996)
 -- Name: category_inventory category_inventory_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -709,7 +654,6 @@ ALTER TABLE ONLY public.category_inventory
 
 
 --
--- TOC entry 4380 (class 2606 OID 19006)
 -- Name: inventories inventories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -718,7 +662,6 @@ ALTER TABLE ONLY public.inventories
 
 
 --
--- TOC entry 4388 (class 2606 OID 19086)
 -- Name: permissions permissions_code_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -727,7 +670,6 @@ ALTER TABLE ONLY public.permissions
 
 
 --
--- TOC entry 4390 (class 2606 OID 19084)
 -- Name: permissions permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -736,7 +678,6 @@ ALTER TABLE ONLY public.permissions
 
 
 --
--- TOC entry 4376 (class 2606 OID 18987)
 -- Name: rack_inventory rack_inventory_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -745,7 +686,6 @@ ALTER TABLE ONLY public.rack_inventory
 
 
 --
--- TOC entry 4392 (class 2606 OID 19091)
 -- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -754,7 +694,6 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- TOC entry 4384 (class 2606 OID 19070)
 -- Name: roles roles_name_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -763,7 +702,6 @@ ALTER TABLE ONLY public.roles
 
 
 --
--- TOC entry 4386 (class 2606 OID 19068)
 -- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -772,7 +710,6 @@ ALTER TABLE ONLY public.roles
 
 
 --
--- TOC entry 4382 (class 2606 OID 19024)
 -- Name: sales_item sales_item_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -781,7 +718,14 @@ ALTER TABLE ONLY public.sales_item
 
 
 --
--- TOC entry 4394 (class 2606 OID 19123)
+-- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT sessions_pkey PRIMARY KEY (session_id);
+
+
+--
 -- Name: user_permissions user_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -790,7 +734,6 @@ ALTER TABLE ONLY public.user_permissions
 
 
 --
--- TOC entry 4370 (class 2606 OID 18969)
 -- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -799,7 +742,6 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 4372 (class 2606 OID 18967)
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -808,7 +750,6 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 4374 (class 2606 OID 18978)
 -- Name: warehouse_inventory warehouse_inventory_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -817,7 +758,6 @@ ALTER TABLE ONLY public.warehouse_inventory
 
 
 --
--- TOC entry 4397 (class 2606 OID 19035)
 -- Name: category_inventory category_inventory_rack_inventory_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -826,7 +766,14 @@ ALTER TABLE ONLY public.category_inventory
 
 
 --
--- TOC entry 4398 (class 2606 OID 19040)
+-- Name: sessions fk_user; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.sessions
+    ADD CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES public.users(user_id) ON DELETE CASCADE;
+
+
+--
 -- Name: inventories inventories_category_inventory_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -835,7 +782,6 @@ ALTER TABLE ONLY public.inventories
 
 
 --
--- TOC entry 4400 (class 2606 OID 19097)
 -- Name: role_permissions role_permissions_permission_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -844,7 +790,6 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- TOC entry 4401 (class 2606 OID 19092)
 -- Name: role_permissions role_permissions_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -853,7 +798,6 @@ ALTER TABLE ONLY public.role_permissions
 
 
 --
--- TOC entry 4399 (class 2606 OID 19055)
 -- Name: sales_item sales_item_inventory_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -862,7 +806,6 @@ ALTER TABLE ONLY public.sales_item
 
 
 --
--- TOC entry 4402 (class 2606 OID 19129)
 -- Name: user_permissions user_permissions_permission_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -871,7 +814,6 @@ ALTER TABLE ONLY public.user_permissions
 
 
 --
--- TOC entry 4403 (class 2606 OID 19124)
 -- Name: user_permissions user_permissions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -880,7 +822,6 @@ ALTER TABLE ONLY public.user_permissions
 
 
 --
--- TOC entry 4395 (class 2606 OID 19071)
 -- Name: users users_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -889,7 +830,6 @@ ALTER TABLE ONLY public.users
 
 
 --
--- TOC entry 4396 (class 2606 OID 19025)
 -- Name: warehouse_inventory warehouse_inventory_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -897,11 +837,9 @@ ALTER TABLE ONLY public.warehouse_inventory
     ADD CONSTRAINT warehouse_inventory_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(user_id);
 
 
--- Completed on 2026-01-06 01:35:15 WITA
-
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xUhOgD4mfevFD1adJRww5NGPlxqkwx3J26HXLATagXWQ4Gs9WLwPV8D7tMzcmY3
+\unrestrict ZCDUIrD5Axr092h79mhTSnWhf8uHsgEZuzmsywNWQ8tkAVeJ7dVdSxeDZizN2yy
 

@@ -30,7 +30,7 @@ func (middlewareCostume *MiddlewareCostume) ValidAndExtendSession() func(http.Ha
 			}
 			//lakukan update cookie
 			http.SetCookie(w, &http.Cookie{
-				Name:     "session_token",
+				Name:     "session",
 				Value:    getSessionID,
 				Path:     "/",
 				MaxAge:   24 * 60 * 60,
