@@ -18,6 +18,7 @@ type CategoryRepoInterface interface {
 	CreateCategory(category *model.Category) error
 	UpdateCategory(id int, category *model.Category) error
 	DeleteCategory(id int) error
+	GetCategoryByID(id int) (*model.Category, error)
 }
 
 // constructor
@@ -114,4 +115,21 @@ func (r *CategoryRepo) DeleteCategory(id int) error {
 		return err
 	}
 	return nil
+}
+
+// untuk membaca category berdarsaskan id
+func (r *CategoryRepo) GetCategoryByID(id int) (*model.Category, error) {
+	var category model.Category
+	query := `SELECT c.name,c.rack_inventory_id,r.name as rack_inventory FROM category_inventory c
+	JOIN rack_inventory r ON c.rack_inventory_id = r.rack_inventory_id
+WHERE category_inventory_id = $1;`
+	err := r.DB.QueryRow(context.Background(), query, id).Scan(&category.Name, &category.Rack_inventory_id, &category.RackInventory)
+	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal mendapatkan category berdarsaskan id",
+			zap.Error(err),
+			zap.String("query", query),
+		)
+		return nil, err
+	}
+	return &category, nil
 }

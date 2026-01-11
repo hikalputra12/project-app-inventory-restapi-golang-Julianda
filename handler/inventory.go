@@ -119,7 +119,7 @@ func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Reques
 	err = h.service.UpdateInventory(id, &newInventory)
 	if err != nil {
 		h.logger.Error("failed update inventory on service",
-			zap.String("user_id", idStr),
+			zap.String("Inventory_id", idStr),
 			zap.Error(err),
 		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
@@ -129,7 +129,7 @@ func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  true,
-		"message": "Update user succesfully",
+		"message": "Update Inventory succesfully",
 	})
 
 }
@@ -148,7 +148,7 @@ func (h *InventoryHandler) DeleteInventory(w http.ResponseWriter, r *http.Reques
 	err = h.service.DeleteInventory(id)
 	if err != nil {
 		h.logger.Error("failed delete inventory on service",
-			zap.String("user_id", idStr),
+			zap.String("Inventory_id", idStr),
 			zap.Error(err),
 		)
 		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
@@ -158,7 +158,7 @@ func (h *InventoryHandler) DeleteInventory(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  true,
-		"message": "Delete user succesfully",
+		"message": "Delete Inventory succesfully",
 	})
 
 }
@@ -196,4 +196,30 @@ func (h *InventoryHandler) CheckStock(w http.ResponseWriter, r *http.Request) {
 	}
 	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
 
+}
+
+// get inventory by id
+func (h *InventoryHandler) GetInventoryById(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	InventoryID, _ := strconv.Atoi(id)
+
+	// Get data Inventorys form service all Inventorys
+	Inventory, err := h.service.GetInventoryById(InventoryID)
+	if err != nil {
+		h.logger.Error("failed get Inventory by id on service",
+			zap.Error(err),
+		)
+		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+		return
+	}
+	var response dto.InventoryByIdResponse
+	response = dto.InventoryByIdResponse{
+		Name:      Inventory.Name,
+		Price:     Inventory.Price,
+		Stock:     Inventory.Stock,
+		Category:  Inventory.Category,
+		Rack:      Inventory.Rack,
+		Warehouse: Inventory.Warehouse,
+	}
+	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
 }

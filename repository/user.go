@@ -25,6 +25,7 @@ type UserRepoInterface interface {
 	UpdateUser(id int, user *model.User) error
 	DeleteUser(id int) error
 	FindByEmail(email string) (*model.User, error)
+	GetUserByID(id int) (*model.User, error)
 }
 
 // constructor
@@ -156,4 +157,27 @@ func (r *userRepo) FindByEmail(email string) (*model.User, error) {
 	}
 
 	return &user, err
+}
+
+// untuk membaca user berdarsarkan id
+func (r *userRepo) GetUserByID(id int) (*model.User, error) {
+	var user model.User
+	query := `SELECT 
+    users.name, 
+    users.email, 
+    roles.name AS role_name,
+	users.role_id,
+	users.password_hash
+FROM users
+JOIN roles ON users.role_id = roles.id
+WHERE user_id = $1 AND users.deleted_at IS NULL;`
+	err := r.DB.QueryRow(context.Background(), query, id).Scan(&user.Name, &user.Email, &user.Role, &user.Role_id, &user.Password)
+	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal mendapatkan user berdarsaskan id",
+			zap.Error(err),
+			zap.String("query", query),
+		)
+		return nil, err
+	}
+	return &user, nil
 }

@@ -18,6 +18,7 @@ type CategoryServiceInterface interface {
 	CreateCategory(category *model.Category) error
 	UpdateCategory(id int, category *model.Category) error
 	DeleteCategory(id int) error
+	GetCategoryById(id int) (*model.Category, error)
 }
 
 // constructor
@@ -56,7 +57,23 @@ func (s *CategoryService) CreateCategory(Category *model.Category) error {
 }
 
 func (s *CategoryService) UpdateCategory(id int, Category *model.Category) error {
-	err := s.repo.CategoryRepo.UpdateCategory(id, Category)
+	getCategory, err := s.repo.CategoryRepo.GetCategoryByID(id)
+	if err != nil {
+		return err
+	}
+
+	if Category.Name != "" {
+		getCategory.Name = Category.Name
+	}
+	if Category.Rack_inventory_id != 0 {
+		getCategory.Rack_inventory_id = Category.Rack_inventory_id
+	}
+
+	NewCategoryUpdate := &model.Category{
+		Name:              getCategory.Name,
+		Rack_inventory_id: getCategory.Rack_inventory_id,
+	}
+	err = s.repo.CategoryRepo.UpdateCategory(id, NewCategoryUpdate)
 	if err != nil {
 		s.logger.Error("failed updated category on repository ",
 			zap.Error(err),
@@ -74,4 +91,15 @@ func (s *CategoryService) DeleteCategory(id int) error {
 		return err
 	}
 	return nil
+}
+
+// get category by id
+func (s *CategoryService) GetCategoryById(id int) (*model.Category, error) {
+	category, err := s.repo.CategoryRepo.GetCategoryByID(id)
+	if err != nil {
+		s.logger.Error("failed to connect service to read category by id", zap.Error(err))
+		return nil, err
+	}
+
+	return category, nil
 }

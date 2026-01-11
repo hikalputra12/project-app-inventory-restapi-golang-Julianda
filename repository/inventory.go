@@ -24,6 +24,7 @@ type InventoryRepoInterface interface {
 	UpdateInventory(id int, inventory *model.Inventory) error
 	DeleteInventory(id int) error
 	CheckStock(page, limit int) ([]model.Inventory, int, error)
+	GetInventoryByID(id int) (*model.Inventory, error)
 }
 
 // constructor
@@ -189,4 +190,35 @@ LIMIT $1 OFFSET $2;`
 		Inventories = append(Inventories, t)
 	}
 	return Inventories, total, nil
+}
+
+// untuk membaca inventory berdarsaskan id
+func (r *InventoryRepo) GetInventoryByID(id int) (*model.Inventory, error) {
+	var inventory model.Inventory
+	query := `SELECT 
+    i.name AS product_name, 
+    i.price, 
+    i.stock,
+	i.category_inventory_id, 
+    c.name AS category_name, 
+    r.name AS rack_name,     
+    w.name AS warehouse_name
+FROM 
+    inventories i
+JOIN 
+    category_inventory c ON i.category_inventory_id = c.category_inventory_id
+JOIN 
+    rack_inventory r ON c.rack_inventory_id = r.rack_inventory_id
+JOIN 
+    warehouse_inventory w ON r.warehouse_inventory_id = w.warehouse_inventory_id 
+WHERE i.inventory_id = $1`
+	err := r.DB.QueryRow(context.Background(), query, id).Scan(&inventory.Name, &inventory.Price, &inventory.Stock, &inventory.Category_inventory_id, &inventory.Category, &inventory.Rack, &inventory.Warehouse)
+	if err != nil {
+		r.Logger.Error("Database Query Error: Gagal mendapatkan inventory berdarsaskan id",
+			zap.Error(err),
+			zap.String("query", query),
+		)
+		return nil, err
+	}
+	return &inventory, nil
 }

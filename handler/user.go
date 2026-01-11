@@ -57,6 +57,31 @@ func (h *UserHandler) ListUser(w http.ResponseWriter, r *http.Request) {
 	}
 	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
 }
+
+// get user by id
+func (h *UserHandler) UserById(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	userID, _ := strconv.Atoi(id)
+
+	// Get data users form service all users
+	user, err := h.service.GetUserById(userID)
+	if err != nil {
+		h.logger.Error("failed get user by id on service",
+			zap.Error(err),
+		)
+		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+		return
+	}
+	var response dto.UserByIdResponse
+	response = dto.UserByIdResponse{
+		Name:  user.Name,
+		Email: user.Email,
+		Role:  user.Role,
+	}
+	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
+
+}
+
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateNewUserRequest
 	//mengubah json body ke struct
@@ -92,10 +117,6 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	//mengambil id
 	idStr := chi.URLParam(r, "id")
-	h.logger.Info("Request Update User dimulai",
-		zap.String("user_id", idStr),
-		zap.String("path", r.URL.Path),
-	)
 	id, err := strconv.Atoi(idStr)
 
 	if err != nil {

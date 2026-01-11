@@ -3,6 +3,7 @@ package service
 import (
 	"app-inventory/model"
 	"app-inventory/repository"
+	"app-inventory/utils"
 	"errors"
 
 	"go.uber.org/zap"
@@ -31,8 +32,8 @@ func (s *authService) Login(email, password string) (*model.User, error) {
 		return nil, errors.New("user not found")
 	}
 
-	if user.Password != password {
-		s.logger.Warn("Login attempt failed: password not found",
+	if !utils.CompareHashAndPassword([]byte(user.Password), []byte(password)) {
+		s.logger.Warn("Login attempt failed: password is incorrect",
 			zap.String("password", password),
 		)
 		return nil, errors.New("incorrect password")

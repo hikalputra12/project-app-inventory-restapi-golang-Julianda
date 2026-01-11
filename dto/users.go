@@ -19,3 +19,10 @@ type UpdateUserRequest struct {
 	Role_id  int    `json:"role_id" validate:"required,gte=1,lte=3"`
 	Password string `json:"password" validate:"required,min=6"`
 }
+type UserByIdResponse struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
+	RoleID   int    `json:"-"`
+	Password string `json:"-"`
+}

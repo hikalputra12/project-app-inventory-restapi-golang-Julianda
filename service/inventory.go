@@ -19,6 +19,7 @@ type InventoryServiceInterface interface {
 	CreateInventory(inventory *model.Inventory) error
 	UpdateInventory(id int, inventory *model.Inventory) error
 	DeleteInventory(id int) error
+	GetInventoryById(id int) (*model.Inventory, error)
 }
 
 // constructor
@@ -55,9 +56,33 @@ func (s *InventoryService) CreateInventory(inventory *model.Inventory) error {
 }
 
 func (s *InventoryService) UpdateInventory(id int, inventory *model.Inventory) error {
-	err := s.repo.InventoryRepo.UpdateInventory(id, inventory)
+	getInventory, err := s.repo.InventoryRepo.GetInventoryByID(id)
 	if err != nil {
-		s.logger.Error("failed created category on repository ",
+		return err
+	}
+
+	if inventory.Name != "" {
+		getInventory.Name = inventory.Name
+	}
+	if inventory.Price != 0 {
+		getInventory.Price = inventory.Price
+	}
+	if inventory.Stock != 0 {
+		getInventory.Stock = inventory.Stock
+	}
+	if inventory.Category_inventory_id != 0 {
+		getInventory.Category_inventory_id = inventory.Category_inventory_id
+	}
+
+	NewInventoryUpdate := &model.Inventory{
+		Name:                  getInventory.Name,
+		Price:                 getInventory.Price,
+		Stock:                 getInventory.Stock,
+		Category_inventory_id: getInventory.Category_inventory_id,
+	}
+	err = s.repo.InventoryRepo.UpdateInventory(id, NewInventoryUpdate)
+	if err != nil {
+		s.logger.Error("failed updated inventory on repository",
 			zap.Error(err),
 		)
 		return err
@@ -87,4 +112,15 @@ func (s *InventoryService) CheckStock(page, limit int) ([]model.Inventory, *dto.
 		TotalPages:  utils.TotalPage(limit, int64(total)),
 	}
 	return Inventories, &pagination, nil
+}
+
+// get inventory by id
+func (s *InventoryService) GetInventoryById(id int) (*model.Inventory, error) {
+	inventory, err := s.repo.InventoryRepo.GetInventoryByID(id)
+	if err != nil {
+		s.logger.Error("failed to connect service to read inventory by id", zap.Error(err))
+		return nil, err
+	}
+
+	return inventory, nil
 }

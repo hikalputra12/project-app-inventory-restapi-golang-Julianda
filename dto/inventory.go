@@ -21,3 +21,13 @@ type UpdateInventoryRequest struct {
 	Stock       int    `json:"stock"  validate:"required,gte=0"`
 	Category_id int    `json:"category_id" validate:"required,gte=0"`
 }
+
+type InventoryByIdResponse struct {
+	Name       string `json:"name"`
+	Price      int    `json:"price"`
+	Stock      int    `json:"stock"`
+	CategoryID int    `json:"-"`
+	Category   string `json:"category"`
+	Rack       string `json:"rack"`
+	Warehouse  string `json:"warehouse"`
+}

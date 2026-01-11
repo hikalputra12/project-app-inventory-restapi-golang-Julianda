@@ -144,3 +144,25 @@ func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request)
 	})
 
 }
+
+// get category by id
+func (h *CategoryHandler) GetCategoryById(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	CategoryID, _ := strconv.Atoi(id)
+
+	// Get data Categorys form service all Categorys
+	category, err := h.service.GetCategoryById(CategoryID)
+	if err != nil {
+		h.logger.Error("failed get Category by id on service",
+			zap.Error(err),
+		)
+		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+		return
+	}
+	var response dto.CategoryByIdResponse
+	response = dto.CategoryByIdResponse{
+		Name:          category.Name,
+		RackInventory: category.RackInventory,
+	}
+	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
+}
