@@ -23,15 +23,20 @@ func (middlewareCostume *MiddlewareCostume) ValidAndExtendSession() func(http.Ha
 				utils.ResponseError(w, http.StatusUnauthorized, "Sesi sudah kadaluarsa atau tidak valid", nil)
 				return
 			}
-			err = middlewareCostume.Service.SessionService.ExtendSession(sessionID)
+			//set uuid baru
+			newSession := utils.NewUUID()
+			//exted cookie
+			NewsessionID := &model.Session{
+				SessionID: newSession,
+			}
+			err = middlewareCostume.Service.SessionService.ExtendSession(NewsessionID)
 			if err != nil {
-				utils.ResponseError(w, http.StatusInternalServerError, "Terjadi kesalahan sistem saat memproses sesi", nil)
 				return
 			}
 			//lakukan update cookie
 			http.SetCookie(w, &http.Cookie{
 				Name:     "session",
-				Value:    getSessionID,
+				Value:    newSession,
 				Path:     "/",
 				MaxAge:   24 * 60 * 60,
 				HttpOnly: true,

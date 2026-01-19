@@ -66,10 +66,10 @@ func (r *SessionRepo) RevokeSession(session *model.Session) error {
 }
 func (r *SessionRepo) ExtendSession(session *model.Session) error {
 	query := `UPDATE sessions 
-			SET expired_at=$1, last_active=NOW() WHERE session_id=$2 AND revoked_at is NULL `
+			SET session_id = $1 ,expired_at=$2, last_active=NOW() WHERE session_id=$3 AND revoked_at is NULL `
 	expired := time.Now().Add(24 * time.Hour)
 	session.ExpiredAt = expired
-	_, err := r.DB.Exec(context.Background(), query, expired, session.SessionID)
+	_, err := r.DB.Exec(context.Background(), query, session.SessionID, expired, session.SessionID)
 	if err != nil {
 		r.Logger.Error("Database Query Error: failed update session on database",
 			zap.Error(err),
