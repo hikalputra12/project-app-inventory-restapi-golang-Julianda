@@ -10,7 +10,7 @@ import (
 )
 
 type userService struct {
-	repo   repository.Repo
+	repo   repository.UserRepoInterface
 	logger *zap.Logger
 }
 type UserServiceInterface interface {
@@ -22,7 +22,7 @@ type UserServiceInterface interface {
 }
 
 // constructor
-func NewUserService(repo repository.Repo, log *zap.Logger) UserServiceInterface {
+func NewUserService(repo repository.UserRepoInterface, log *zap.Logger) UserServiceInterface {
 	return &userService{
 		repo:   repo,
 		logger: log,
@@ -30,7 +30,7 @@ func NewUserService(repo repository.Repo, log *zap.Logger) UserServiceInterface 
 }
 
 func (s *userService) GetAllUser(page, limit int) ([]model.User, *dto.Pagination, error) {
-	users, total, err := s.repo.UserRepo.GetAllUser(page, limit)
+	users, total, err := s.repo.GetAllUser(page, limit)
 	if err != nil {
 		s.logger.Error("failed to connect service to read list user", zap.Error(err))
 		return nil, nil, err
@@ -45,7 +45,7 @@ func (s *userService) GetAllUser(page, limit int) ([]model.User, *dto.Pagination
 
 // get user by id
 func (s *userService) GetUserById(id int) (*model.User, error) {
-	users, err := s.repo.UserRepo.GetUserByID(id)
+	users, err := s.repo.GetUserByID(id)
 	if err != nil {
 		s.logger.Error("failed to connect service to read user by id", zap.Error(err))
 		return nil, err
@@ -63,7 +63,7 @@ func (s *userService) CreateUser(user *model.User) error {
 		Email:    user.Email,
 		Role_id:  user.Role_id,
 	}
-	err := s.repo.UserRepo.CreateUser(NewUser)
+	err := s.repo.CreateUser(NewUser)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (s *userService) CreateUser(user *model.User) error {
 
 func (s *userService) UpdateUser(id int, user *model.User) error {
 	passwordHash := utils.HashPassword(user.Password)
-	getUser, err := s.repo.UserRepo.GetUserByID(id)
+	getUser, err := s.repo.GetUserByID(id)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (s *userService) UpdateUser(id int, user *model.User) error {
 		Email:    getUser.Email,
 		Role_id:  getUser.Role_id,
 	}
-	err = s.repo.UserRepo.UpdateUser(id, NewUserUpdate)
+	err = s.repo.UpdateUser(id, NewUserUpdate)
 	if err != nil {
 		return err
 	}
@@ -104,7 +104,7 @@ func (s *userService) UpdateUser(id int, user *model.User) error {
 }
 
 func (s *userService) DeleteUser(id int) error {
-	err := s.repo.UserRepo.DeleteUser(id)
+	err := s.repo.DeleteUser(id)
 	if err != nil {
 		return err
 	}

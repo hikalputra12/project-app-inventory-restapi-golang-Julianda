@@ -14,18 +14,18 @@ type AuthServiceInterface interface {
 }
 
 type authService struct {
-	Repo   repository.Repo
+	Repo   repository.UserRepoInterface
 	logger *zap.Logger
 }
 
-func NewAuthService(repo repository.Repo, log *zap.Logger) AuthServiceInterface {
+func NewAuthService(repo repository.UserRepoInterface, log *zap.Logger) AuthServiceInterface {
 	return &authService{Repo: repo,
 		logger: log}
 }
 
 // untuk auth login
 func (s *authService) Login(email, password string) (*model.User, error) {
-	user, err := s.Repo.UserRepo.FindByEmail(email)
+	user, err := s.Repo.FindByEmail(email)
 	if err != nil {
 		s.logger.Warn("Login attempt failed: email not found",
 			zap.String("email", email))

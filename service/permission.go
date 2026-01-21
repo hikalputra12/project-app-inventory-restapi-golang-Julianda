@@ -9,15 +9,15 @@ type PermissionIface interface {
 }
 
 type permissionService struct {
-	Repo repository.Repo
+	Repo repository.PermissionIface
 }
 
-func NewPermissionService(repo repository.Repo) *permissionService {
+func NewPermissionService(repo repository.PermissionIface) *permissionService {
 	return &permissionService{Repo: repo}
 }
 
 func (permissionService *permissionService) Allowed(userID int, code string) (bool, error) {
-	allowed, err := permissionService.Repo.Permission.Allowed(userID, code)
+	allowed, err := permissionService.Repo.Allowed(userID, code)
 	if err != nil {
 		return false, err
 	}

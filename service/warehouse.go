@@ -10,7 +10,7 @@ import (
 )
 
 type WarehouseService struct {
-	repo   repository.Repo
+	repo   repository.WarehouseRepoInterface
 	logger *zap.Logger
 }
 type WarehouseServiceInterface interface {
@@ -22,7 +22,7 @@ type WarehouseServiceInterface interface {
 }
 
 // constructor
-func NewWarehouseService(repo repository.Repo, log *zap.Logger) WarehouseServiceInterface {
+func NewWarehouseService(repo repository.WarehouseRepoInterface, log *zap.Logger) WarehouseServiceInterface {
 	return &WarehouseService{
 		repo:   repo,
 		logger: log,
@@ -30,7 +30,7 @@ func NewWarehouseService(repo repository.Repo, log *zap.Logger) WarehouseService
 }
 
 func (s *WarehouseService) GetAllWarehouse(page, limit int) ([]model.Warehouse, *dto.Pagination, error) {
-	warehouse, total, err := s.repo.WarehouseRepo.GetAllWarehouse(page, limit)
+	warehouse, total, err := s.repo.GetAllWarehouse(page, limit)
 	if err != nil {
 		s.logger.Error("failed to connect service to read list Warehouse", zap.Error(err))
 		return nil, nil, err
@@ -44,7 +44,7 @@ func (s *WarehouseService) GetAllWarehouse(page, limit int) ([]model.Warehouse, 
 }
 
 func (s *WarehouseService) CreateWarehouse(Warehouse *model.Warehouse) error {
-	err := s.repo.WarehouseRepo.CreateWarehouse(Warehouse)
+	err := s.repo.CreateWarehouse(Warehouse)
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func (s *WarehouseService) CreateWarehouse(Warehouse *model.Warehouse) error {
 }
 
 func (s *WarehouseService) UpdateWarehouse(id int, Warehouse *model.Warehouse) error {
-	getWarehouse, err := s.repo.WarehouseRepo.GetWarehouseByID(id)
+	getWarehouse, err := s.repo.GetWarehouseByID(id)
 	if err != nil {
 		return err
 	}
@@ -68,14 +68,14 @@ func (s *WarehouseService) UpdateWarehouse(id int, Warehouse *model.Warehouse) e
 		Name:     getWarehouse.Name,
 		Location: getWarehouse.Location,
 	}
-	err = s.repo.WarehouseRepo.UpdateWarehouse(id, NewWarehouseUpdate)
+	err = s.repo.UpdateWarehouse(id, NewWarehouseUpdate)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func (s *WarehouseService) DeleteWarehouse(id int) error {
-	err := s.repo.WarehouseRepo.DeleteWarehouse(id)
+	err := s.repo.DeleteWarehouse(id)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (s *WarehouseService) DeleteWarehouse(id int) error {
 
 // get warehouse by id
 func (s *WarehouseService) GetWarehouseById(id int) (*model.Warehouse, error) {
-	warehouse, err := s.repo.WarehouseRepo.GetWarehouseByID(id)
+	warehouse, err := s.repo.GetWarehouseByID(id)
 	if err != nil {
 		s.logger.Error("failed to connect service to read warehouse by id", zap.Error(err))
 		return nil, err

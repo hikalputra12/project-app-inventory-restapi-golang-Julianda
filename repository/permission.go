@@ -9,14 +9,14 @@ type PermissionIface interface {
 	Allowed(userID int, code string) (bool, error)
 }
 
-type permissionRepository struct {
+type permissionRepo struct {
 	db database.PgxIface
 }
 
-func NewPermissionRepository(db database.PgxIface) *permissionRepository {
-	return &permissionRepository{db: db}
+func NewPermissionRepository(db database.PgxIface) PermissionIface {
+	return &permissionRepo{db: db}
 }
-func (permissionRepository *permissionRepository) Allowed(userID int, code string) (bool, error) {
+func (permissionRepository *permissionRepo) Allowed(userID int, code string) (bool, error) {
 
 	const qAllowed = `
     WITH perm AS (
@@ -48,7 +48,6 @@ func (permissionRepository *permissionRepository) Allowed(userID int, code strin
 
 	var allowed bool
 	err := permissionRepository.db.QueryRow(context.Background(), qAllowed, userID, code).Scan(&allowed)
-
 
 	return allowed, err
 }

@@ -22,15 +22,15 @@ type Service struct {
 
 func AllService(repo repository.Repo, log *zap.Logger) Service {
 	return Service{
-		UserService:        NewUserService(repo, log),
-		InventoryService:   NewInventoryService(repo, log),
-		CategoryService:    NewCategoryService(repo, log),
-		RackService:        NewRackService(repo, log),
-		WarehouseService:   NewWarehouseService(repo, log),
-		TransactionService: NewTransactionService(repo, log),
-		ReportService:      NewReportService(repo, log),
-		SessionService:     NewSessionService(repo, log),
-		AuthService:        NewAuthService(repo, log),
-		Permission:         NewPermissionService(repo),
+		UserService:        NewUserService(repo.UserRepo, log),
+		InventoryService:   NewInventoryService(repo.InventoryRepo, log),
+		CategoryService:    NewCategoryService(repo.CategoryRepo, log),
+		RackService:        NewRackService(repo.RackRepo, log),
+		WarehouseService:   NewWarehouseService(repo.WarehouseRepo, log),
+		TransactionService: NewTransactionService(repo.TransactionRepo, log),
+		ReportService:      NewReportService(repo.ReportRepo, log),
+		SessionService:     NewSessionService(repo.SessionRepo, log),
+		AuthService:        NewAuthService(repo.UserRepo, log),
+		Permission:         NewPermissionService(repo.Permission),
 	}
 }

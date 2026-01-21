@@ -8,7 +8,7 @@ import (
 )
 
 type SessionService struct {
-	repo   repository.Repo
+	repo   repository.SessionRepoInterface
 	logger *zap.Logger
 }
 type SessionServiceInterface interface {
@@ -20,7 +20,7 @@ type SessionServiceInterface interface {
 }
 
 // constructor
-func NewSessionService(repo repository.Repo, log *zap.Logger) SessionServiceInterface {
+func NewSessionService(repo repository.SessionRepoInterface, log *zap.Logger) SessionServiceInterface {
 	return &SessionService{
 		repo:   repo,
 		logger: log,
@@ -28,7 +28,7 @@ func NewSessionService(repo repository.Repo, log *zap.Logger) SessionServiceInte
 }
 
 func (s *SessionService) CreateSession(session *model.Session) error {
-	err := s.repo.SessionRepo.CreateSession(session)
+	err := s.repo.CreateSession(session)
 	if err != nil {
 		s.logger.Error("failed create Session on repository",
 			zap.Error(err),
@@ -39,7 +39,7 @@ func (s *SessionService) CreateSession(session *model.Session) error {
 }
 
 func (s *SessionService) RevokeSession(session *model.Session) error {
-	err := s.repo.SessionRepo.RevokeSession(session)
+	err := s.repo.RevokeSession(session)
 	if err != nil {
 		s.logger.Error("failed revoke Session on repository",
 			zap.Error(err),
@@ -49,7 +49,7 @@ func (s *SessionService) RevokeSession(session *model.Session) error {
 	return nil
 }
 func (s *SessionService) ExtendSession(session *model.Session) error {
-	err := s.repo.SessionRepo.ExtendSession(session)
+	err := s.repo.ExtendSession(session)
 	if err != nil {
 		s.logger.Error("failed extend Session on repository",
 			zap.Error(err),
@@ -59,7 +59,7 @@ func (s *SessionService) ExtendSession(session *model.Session) error {
 	return nil
 }
 func (s *SessionService) IsValid(session *model.Session) (bool, error) {
-	valid, err := s.repo.SessionRepo.IsValid(session)
+	valid, err := s.repo.IsValid(session)
 	if err != nil {
 		s.logger.Error("failed check valid session Session on repository",
 			zap.Error(err),
@@ -69,7 +69,7 @@ func (s *SessionService) IsValid(session *model.Session) (bool, error) {
 	return valid, err
 }
 func (s *SessionService) GetUserIDBySession(session *model.Session) (int, error) {
-	userID, err := s.repo.SessionRepo.GetUserIDBySession(session)
+	userID, err := s.repo.GetUserIDBySession(session)
 	if err != nil {
 		s.logger.Error("failed extend Session on repository",
 			zap.Error(err),

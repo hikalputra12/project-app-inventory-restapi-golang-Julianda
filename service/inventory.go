@@ -10,7 +10,7 @@ import (
 )
 
 type InventoryService struct {
-	repo   repository.Repo
+	repo   repository.InventoryRepoInterface
 	logger *zap.Logger
 }
 type InventoryServiceInterface interface {
@@ -23,7 +23,7 @@ type InventoryServiceInterface interface {
 }
 
 // constructor
-func NewInventoryService(repo repository.Repo, log *zap.Logger) InventoryServiceInterface {
+func NewInventoryService(repo repository.InventoryRepoInterface, log *zap.Logger) InventoryServiceInterface {
 	return &InventoryService{
 		repo:   repo,
 		logger: log,
@@ -31,7 +31,7 @@ func NewInventoryService(repo repository.Repo, log *zap.Logger) InventoryService
 }
 
 func (s *InventoryService) GetAllInventory(page, limit int) ([]model.Inventory, *dto.Pagination, error) {
-	Inventories, total, err := s.repo.InventoryRepo.GetAllInventory(page, limit)
+	Inventories, total, err := s.repo.GetAllInventory(page, limit)
 	if err != nil {
 		s.logger.Error("failed to connect service to read list Inventory", zap.Error(err))
 		return nil, nil, err
@@ -45,7 +45,7 @@ func (s *InventoryService) GetAllInventory(page, limit int) ([]model.Inventory, 
 }
 
 func (s *InventoryService) CreateInventory(inventory *model.Inventory) error {
-	err := s.repo.InventoryRepo.CreateInventory(inventory)
+	err := s.repo.CreateInventory(inventory)
 	if err != nil {
 		s.logger.Error("failed created inventory on repository",
 			zap.Error(err),
@@ -56,7 +56,7 @@ func (s *InventoryService) CreateInventory(inventory *model.Inventory) error {
 }
 
 func (s *InventoryService) UpdateInventory(id int, inventory *model.Inventory) error {
-	getInventory, err := s.repo.InventoryRepo.GetInventoryByID(id)
+	getInventory, err := s.repo.GetInventoryByID(id)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func (s *InventoryService) UpdateInventory(id int, inventory *model.Inventory) e
 		Stock:                 getInventory.Stock,
 		Category_inventory_id: getInventory.Category_inventory_id,
 	}
-	err = s.repo.InventoryRepo.UpdateInventory(id, NewInventoryUpdate)
+	err = s.repo.UpdateInventory(id, NewInventoryUpdate)
 	if err != nil {
 		s.logger.Error("failed updated inventory on repository",
 			zap.Error(err),
@@ -90,7 +90,7 @@ func (s *InventoryService) UpdateInventory(id int, inventory *model.Inventory) e
 	return nil
 }
 func (s *InventoryService) DeleteInventory(id int) error {
-	err := s.repo.InventoryRepo.DeleteInventory(id)
+	err := s.repo.DeleteInventory(id)
 	if err != nil {
 		s.logger.Error("failed delete inventory on repository",
 			zap.Error(err),
@@ -101,7 +101,7 @@ func (s *InventoryService) DeleteInventory(id int) error {
 }
 
 func (s *InventoryService) CheckStock(page, limit int) ([]model.Inventory, *dto.Pagination, error) {
-	Inventories, total, err := s.repo.InventoryRepo.CheckStock(page, limit)
+	Inventories, total, err := s.repo.CheckStock(page, limit)
 	if err != nil {
 		s.logger.Error("failed to connect service to read list Inventory", zap.Error(err))
 		return nil, nil, err
@@ -116,7 +116,7 @@ func (s *InventoryService) CheckStock(page, limit int) ([]model.Inventory, *dto.
 
 // get inventory by id
 func (s *InventoryService) GetInventoryById(id int) (*model.Inventory, error) {
-	inventory, err := s.repo.InventoryRepo.GetInventoryByID(id)
+	inventory, err := s.repo.GetInventoryByID(id)
 	if err != nil {
 		s.logger.Error("failed to connect service to read inventory by id", zap.Error(err))
 		return nil, err

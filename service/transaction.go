@@ -10,7 +10,7 @@ import (
 )
 
 type TransactionService struct {
-	repo   repository.Repo
+	repo   repository.TransactionRepoInterface
 	logger *zap.Logger
 }
 type TransactionServiceInterface interface {
@@ -22,7 +22,7 @@ type TransactionServiceInterface interface {
 }
 
 // constructor
-func NewTransactionService(repo repository.Repo, log *zap.Logger) TransactionServiceInterface {
+func NewTransactionService(repo repository.TransactionRepoInterface, log *zap.Logger) TransactionServiceInterface {
 	return &TransactionService{
 		repo:   repo,
 		logger: log,
@@ -30,7 +30,7 @@ func NewTransactionService(repo repository.Repo, log *zap.Logger) TransactionSer
 }
 
 func (s *TransactionService) CreateTransaction(Transaction *model.Transaction) error {
-	err := s.repo.TransactionRepo.CreateTransaction(Transaction)
+	err := s.repo.CreateTransaction(Transaction)
 	if err != nil {
 		s.logger.Error("failed create transaction on repository",
 			zap.Error(err),
@@ -41,7 +41,7 @@ func (s *TransactionService) CreateTransaction(Transaction *model.Transaction) e
 }
 
 func (s *TransactionService) GetAllTransaction(page, limit int) ([]model.Transaction, *dto.Pagination, error) {
-	Transaction, total, err := s.repo.TransactionRepo.GetAllTransaction(page, limit)
+	Transaction, total, err := s.repo.GetAllTransaction(page, limit)
 	if err != nil {
 		s.logger.Error("failed to connect service to read list Transaction", zap.Error(err))
 		return nil, nil, err
@@ -55,7 +55,7 @@ func (s *TransactionService) GetAllTransaction(page, limit int) ([]model.Transac
 }
 
 func (s *TransactionService) UpdateTransaction(id int, Transaction *model.Transaction) error {
-	err := s.repo.TransactionRepo.UpdateTransaction(id, Transaction)
+	err := s.repo.UpdateTransaction(id, Transaction)
 	if err != nil {
 		s.logger.Error("failed update transaction on repository",
 			zap.Error(err),
@@ -65,7 +65,7 @@ func (s *TransactionService) UpdateTransaction(id int, Transaction *model.Transa
 	return nil
 }
 func (s *TransactionService) DeleteTransaction(id int) error {
-	err := s.repo.TransactionRepo.DeleteTransaction(id)
+	err := s.repo.DeleteTransaction(id)
 	if err != nil {
 		s.logger.Error("failed delete transaction on repository",
 			zap.Error(err),
@@ -77,7 +77,7 @@ func (s *TransactionService) DeleteTransaction(id int) error {
 
 // get sale item by id
 func (s *TransactionService) GetTransactionById(id int) (*model.Transaction, error) {
-	transaction, err := s.repo.TransactionRepo.GetTransactionById(id)
+	transaction, err := s.repo.GetTransactionById(id)
 	if err != nil {
 		s.logger.Error("failed to connect service to read sales item by id", zap.Error(err))
 		return nil, err

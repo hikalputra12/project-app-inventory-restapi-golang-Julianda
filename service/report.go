@@ -8,7 +8,7 @@ import (
 )
 
 type ReportService struct {
-	repo   repository.Repo
+	repo   repository.ReportRepoInterface
 	logger *zap.Logger
 }
 type ReportServiceInterface interface {
@@ -16,7 +16,7 @@ type ReportServiceInterface interface {
 }
 
 // constructor
-func NewReportService(repo repository.Repo, log *zap.Logger) ReportServiceInterface {
+func NewReportService(repo repository.ReportRepoInterface, log *zap.Logger) ReportServiceInterface {
 	return &ReportService{
 		repo:   repo,
 		logger: log,
@@ -24,7 +24,7 @@ func NewReportService(repo repository.Repo, log *zap.Logger) ReportServiceInterf
 }
 
 func (s *ReportService) Report() (*model.Report, error) {
-	report, err := s.repo.ReportRepo.Report()
+	report, err := s.repo.Report()
 	if err != nil {
 		s.logger.Error("failed create report on repository",
 			zap.Error(err),

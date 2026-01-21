@@ -10,7 +10,7 @@ import (
 )
 
 type RackService struct {
-	repo   repository.Repo
+	repo   repository.RackRepoInterface
 	logger *zap.Logger
 }
 type RackServiceInterface interface {
@@ -22,7 +22,7 @@ type RackServiceInterface interface {
 }
 
 // constructor
-func NewRackService(repo repository.Repo, log *zap.Logger) RackServiceInterface {
+func NewRackService(repo repository.RackRepoInterface, log *zap.Logger) RackServiceInterface {
 	return &RackService{
 		repo:   repo,
 		logger: log,
@@ -30,7 +30,7 @@ func NewRackService(repo repository.Repo, log *zap.Logger) RackServiceInterface 
 }
 
 func (s *RackService) GetAllRack(page, limit int) ([]model.Rack, *dto.Pagination, error) {
-	Categories, total, err := s.repo.RackRepo.GetAllRack(page, limit)
+	Categories, total, err := s.repo.GetAllRack(page, limit)
 	if err != nil {
 		s.logger.Error("failed to connect service to read list Rack", zap.Error(err))
 		return nil, nil, err
@@ -44,7 +44,7 @@ func (s *RackService) GetAllRack(page, limit int) ([]model.Rack, *dto.Pagination
 }
 
 func (s *RackService) CreateRack(Rack *model.Rack) error {
-	err := s.repo.RackRepo.CreateRack(Rack)
+	err := s.repo.CreateRack(Rack)
 	if err != nil {
 		s.logger.Error("failed create rack on repository",
 			zap.Error(err),
@@ -55,7 +55,7 @@ func (s *RackService) CreateRack(Rack *model.Rack) error {
 }
 
 func (s *RackService) UpdateRack(id int, Rack *model.Rack) error {
-	getRack, err := s.repo.RackRepo.GetRackByID(id)
+	getRack, err := s.repo.GetRackByID(id)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (s *RackService) UpdateRack(id int, Rack *model.Rack) error {
 		Name:                 getRack.Name,
 		WarehouseInventoryId: getRack.WarehouseInventoryId,
 	}
-	err = s.repo.RackRepo.UpdateRack(id, NewRackUpdate)
+	err = s.repo.UpdateRack(id, NewRackUpdate)
 	if err != nil {
 		s.logger.Error("failed update rack on repository",
 			zap.Error(err),
@@ -81,7 +81,7 @@ func (s *RackService) UpdateRack(id int, Rack *model.Rack) error {
 	return nil
 }
 func (s *RackService) DeleteRack(id int) error {
-	err := s.repo.RackRepo.DeleteRack(id)
+	err := s.repo.DeleteRack(id)
 	if err != nil {
 		s.logger.Error("failed delete rack on repository",
 			zap.Error(err),
@@ -93,7 +93,7 @@ func (s *RackService) DeleteRack(id int) error {
 
 // get rackby id
 func (s *RackService) GetRackById(id int) (*model.Rack, error) {
-	rack, err := s.repo.RackRepo.GetRackByID(id)
+	rack, err := s.repo.GetRackByID(id)
 	if err != nil {
 		s.logger.Error("failed to connect service to read rack by id", zap.Error(err))
 		return nil, err
