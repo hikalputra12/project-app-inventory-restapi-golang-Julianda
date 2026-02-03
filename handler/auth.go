@@ -64,7 +64,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error("failed create session on service",
 			zap.Error(err),
 		)
-		utils.ResponseError(w, http.StatusInternalServerError, "failed to proccess login session", nil)
+		utils.ResponseError(w, http.StatusBadRequest, "failed to proccess login session", nil)
 		return
 	}
 	expiryTime := 24 * 60 * 60
@@ -100,10 +100,10 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	err = h.SessionService.RevokeSession(revoke)
 	if err != nil {
-		h.Log.Error("failed create session on service",
+		h.Log.Error("failed revoke session on service",
 			zap.Error(err),
 		)
-		utils.ResponseError(w, http.StatusInternalServerError, "failed to proccess login session", nil)
+		utils.ResponseError(w, http.StatusBadRequest, "failed to proccess logout session", nil)
 		return
 	}
 	http.SetCookie(w, &http.Cookie{

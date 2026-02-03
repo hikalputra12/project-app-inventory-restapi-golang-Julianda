@@ -165,7 +165,7 @@ func (h *RackHandler) GetRackById(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("failed get Rack by id on service",
 			zap.Error(err),
 		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch assignments: "+err.Error(), nil)
 		return
 	}
 	var response dto.RackByIdResponse

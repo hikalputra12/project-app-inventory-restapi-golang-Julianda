@@ -42,7 +42,7 @@ func (h *WarehouseHandler) ListWarehouse(w http.ResponseWriter, r *http.Request)
 		h.logger.Error("failed get list warehouse on service",
 			zap.Error(err),
 		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch Warehouse: "+err.Error(), nil)
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch Warehouse: "+err.Error(), nil)
 		return
 	}
 	var response []dto.WarehouseListResponse
@@ -141,7 +141,7 @@ func (h *WarehouseHandler) DeleteWarehouse(w http.ResponseWriter, r *http.Reques
 			zap.String("warehouse_id", idStr),
 			zap.Error(err),
 		)
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		utils.ResponseError(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -164,7 +164,7 @@ func (h *WarehouseHandler) GetWarehouseById(w http.ResponseWriter, r *http.Reque
 		h.logger.Error("failed get warehouse by id on service",
 			zap.Error(err),
 		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch assignments: "+err.Error(), nil)
 		return
 	}
 	var response dto.WarehouseByIdResponse

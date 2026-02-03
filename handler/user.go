@@ -42,7 +42,7 @@ func (h *UserHandler) ListUser(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("failed get list user on service",
 			zap.Error(err),
 		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch assignments: "+err.Error(), nil)
 		return
 	}
 
@@ -69,7 +69,7 @@ func (h *UserHandler) UserById(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("failed get user by id on service",
 			zap.Error(err),
 		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch assignments: "+err.Error(), nil)
 		return
 	}
 	var response dto.UserByIdResponse

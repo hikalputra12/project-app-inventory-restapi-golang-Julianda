@@ -29,7 +29,7 @@ func (h *ReportHandler) Report(w http.ResponseWriter, r *http.Request) {
 		h.logger.Error("failed get report on service",
 			zap.Error(err),
 		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch Report: "+err.Error(), nil)
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch Report: "+err.Error(), nil)
 		return
 	}
 	response := dto.ReportResponse{

@@ -155,7 +155,7 @@ func (h *TransactionHandler) DeleteTransaction(w http.ResponseWriter, r *http.Re
 			zap.String("user_id", idStr),
 			zap.Error(err),
 		)
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		utils.ResponseError(w, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -178,7 +178,7 @@ func (h *TransactionHandler) GetTransactionById(w http.ResponseWriter, r *http.R
 		h.logger.Error("failed get sales item by id on service",
 			zap.Error(err),
 		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch assignments: "+err.Error(), nil)
 		return
 	}
 	var response dto.TransactionByIdResponse
