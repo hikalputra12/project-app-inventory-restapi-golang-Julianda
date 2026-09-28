@@ -5,11 +5,10 @@ import (
 	"app-inventory/model"
 	"app-inventory/service"
 	"app-inventory/utils"
-	"encoding/json"
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +17,6 @@ type WarehouseHandler struct {
 	logger  *zap.Logger
 }
 
-// constructor
 func NewWarehouseHandler(service service.WarehouseServiceInterface, log *zap.Logger) WarehouseHandler {
 	return WarehouseHandler{
 		service: service,
@@ -26,42 +24,42 @@ func NewWarehouseHandler(service service.WarehouseServiceInterface, log *zap.Log
 	}
 }
 
-func (h *WarehouseHandler) ListWarehouse(w http.ResponseWriter, r *http.Request) {
-	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+func (h *WarehouseHandler) ListWarehouse(c *gin.Context) {
+	page := utils.StringToInt(c.DefaultQuery("page", "1"), 1)
+	limit := utils.StringToInt(c.DefaultQuery("limit", "10"), 10)
+
+	warehouses, pagination, err := h.service.GetAllWarehouse(c.Request.Context(), page, limit)
 	if err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid page", nil)
+		h.logger.Error("Failed to get warehouse list", zap.Error(err))
+		utils.ResponseError(c, http.StatusInternalServerError, "Gagal mengambil daftar gudang: "+err.Error(), nil)
 		return
 	}
 
-	// config limit pagination
-	limit := 3
-
-	// Get data Warehouses form service all Warehouses
-	Warehouse, pagination, err := h.service.GetAllWarehouse(page, limit)
-	if err != nil {
-		h.logger.Error("failed get list warehouse on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch Warehouse: "+err.Error(), nil)
-		return
-	}
 	var response []dto.WarehouseListResponse
-	for _, item := range Warehouse {
+	for _, item := range warehouses {
 		response = append(response, dto.WarehouseListResponse{
-			Name: item.Name,
+			ID:       item.ID,
+			Name:     item.Name,
+			Location: item.Location,
 		})
-
 	}
-	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
+	if response == nil {
+		response = []dto.WarehouseListResponse{}
+	}
 
+	utils.ResponsePagination(c, http.StatusOK, "Berhasil memuat daftar gudang", response, *pagination)
 }
 
-func (h *WarehouseHandler) CreateWarehouse(w http.ResponseWriter, r *http.Request) {
+func (h *WarehouseHandler) CreateWarehouse(c *gin.Context) {
 	var req dto.CreateWarehouseRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("Failed to decode JSON body", zap.Error(err))
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format JSON tidak valid", nil)
+		return
+	}
+
+	if fieldErrors, err := utils.ValidateErrors(req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Validasi input gagal", fieldErrors)
 		return
 	}
 
@@ -69,108 +67,93 @@ func (h *WarehouseHandler) CreateWarehouse(w http.ResponseWriter, r *http.Reques
 		Name:     req.Name,
 		Location: req.Location,
 	}
-	err := h.service.CreateWarehouse(&newWarehouse)
+
+	err := h.service.CreateWarehouse(c.Request.Context(), &newWarehouse)
 	if err != nil {
-		h.logger.Error("failed create warehouse on service",
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		h.logger.Error("Failed to create warehouse", zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, "Gagal membuat gudang: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Create new Warehouse succesfully",
-	})
 
+	utils.ResponseSuccess(c, http.StatusCreated, "Gudang baru berhasil dibuat", map[string]interface{}{
+		"id":       newWarehouse.ID,
+		"name":     newWarehouse.Name,
+		"location": newWarehouse.Location,
+	})
 }
 
-func (h *WarehouseHandler) UpdateWarehouse(w http.ResponseWriter, r *http.Request) {
-	//mengambil id
-	idStr := chi.URLParam(r, "id")
-
+func (h *WarehouseHandler) UpdateWarehouse(c *gin.Context) {
+	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
-
-	if err != nil {
-		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+	if err != nil || id <= 0 {
+		utils.ResponseError(c, http.StatusBadRequest, "Format ID gudang tidak valid", nil)
 		return
 	}
+
 	var req dto.UpdateWarehouseRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("Failed to decode JSON body", zap.Error(err))
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format JSON tidak valid", nil)
 		return
 	}
 
-	newWarehouse := model.Warehouse{
+	if fieldErrors, err := utils.ValidateErrors(req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Validasi input gagal", fieldErrors)
+		return
+	}
+
+	updateWarehouse := model.Warehouse{
 		Name:     req.Name,
 		Location: req.Location,
 	}
-	err = h.service.UpdateWarehouse(id, &newWarehouse)
+
+	err = h.service.UpdateWarehouse(c.Request.Context(), id, &updateWarehouse)
 	if err != nil {
-		h.logger.Error("failed update warehouse on service",
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		h.logger.Error("Failed to update warehouse", zap.Int("id", id), zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, "Gagal memperbarui gudang: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Update user succesfully",
-	})
 
+	utils.ResponseSuccess(c, http.StatusOK, "Gudang berhasil diperbarui", map[string]int{"id": id})
 }
 
-func (h *WarehouseHandler) DeleteWarehouse(w http.ResponseWriter, r *http.Request) {
-	//mengambil id
-	idStr := chi.URLParam(r, "id")
-
+func (h *WarehouseHandler) DeleteWarehouse(c *gin.Context) {
+	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
-
-	if err != nil {
-		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+	if err != nil || id <= 0 {
+		utils.ResponseError(c, http.StatusBadRequest, "Format ID gudang tidak valid", nil)
 		return
 	}
-	err = h.service.DeleteWarehouse(id)
+
+	err = h.service.DeleteWarehouse(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("failed delete warehouse on service",
-			zap.String("warehouse_id", idStr),
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusBadRequest, err.Error(), nil)
+		h.logger.Error("Failed to delete warehouse", zap.Int("id", id), zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, "Gagal menghapus gudang: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Delete user succesfully",
-	})
 
+	utils.ResponseSuccess(c, http.StatusOK, "Gudang berhasil dihapus", map[string]int{"id": id})
 }
 
-// get warehouse by id
-func (h *WarehouseHandler) GetWarehouseById(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	WarehouseID, _ := strconv.Atoi(id)
-
-	// Get data Racks form service all Racks
-	warehouse, err := h.service.GetWarehouseById(WarehouseID)
-	if err != nil {
-		h.logger.Error("failed get warehouse by id on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch assignments: "+err.Error(), nil)
+func (h *WarehouseHandler) GetWarehouseById(c *gin.Context) {
+	idStr := c.Param("id")
+	warehouseID, err := strconv.Atoi(idStr)
+	if err != nil || warehouseID <= 0 {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format ID gudang tidak valid", nil)
 		return
 	}
-	var response dto.WarehouseByIdResponse
-	response = dto.WarehouseByIdResponse{
+
+	warehouse, err := h.service.GetWarehouseById(c.Request.Context(), warehouseID)
+	if err != nil {
+		h.logger.Error("Failed to get warehouse by id", zap.Error(err), zap.Int("id", warehouseID))
+		utils.ResponseError(c, http.StatusNotFound, "Gudang tidak ditemukan", nil)
+		return
+	}
+
+	response := dto.WarehouseByIdResponse{
+		ID:       warehouse.ID,
 		Name:     warehouse.Name,
 		Location: warehouse.Location,
 	}
-	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
+	utils.ResponseSuccess(c, http.StatusOK, "Berhasil mendapatkan data gudang", response)
 }

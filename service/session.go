@@ -3,6 +3,7 @@ package service
 import (
 	"app-inventory/model"
 	"app-inventory/repository"
+	"context"
 
 	"go.uber.org/zap"
 )
@@ -11,15 +12,15 @@ type SessionService struct {
 	repo   repository.SessionRepoInterface
 	logger *zap.Logger
 }
+
 type SessionServiceInterface interface {
-	CreateSession(session *model.Session) error
-	RevokeSession(session *model.Session) error
-	ExtendSession(session *model.Session) error
-	IsValid(session *model.Session) (bool, error)
-	GetUserIDBySession(session *model.Session) (int, error)
+	CreateSession(ctx context.Context, session *model.Session) error
+	RevokeSession(ctx context.Context, sessionID string) error
+	ExtendSession(ctx context.Context, sessionID string) error
+	IsValid(ctx context.Context, sessionID string) (bool, error)
+	GetUserIDBySession(ctx context.Context, sessionID string) (int, error)
 }
 
-// constructor
 func NewSessionService(repo repository.SessionRepoInterface, log *zap.Logger) SessionServiceInterface {
 	return &SessionService{
 		repo:   repo,
@@ -27,54 +28,22 @@ func NewSessionService(repo repository.SessionRepoInterface, log *zap.Logger) Se
 	}
 }
 
-func (s *SessionService) CreateSession(session *model.Session) error {
-	err := s.repo.CreateSession(session)
-	if err != nil {
-		s.logger.Error("failed create Session on repository",
-			zap.Error(err),
-		)
-		return err
-	}
-	return nil
+func (s *SessionService) CreateSession(ctx context.Context, session *model.Session) error {
+	return s.repo.CreateSession(ctx, session)
 }
 
-func (s *SessionService) RevokeSession(session *model.Session) error {
-	err := s.repo.RevokeSession(session)
-	if err != nil {
-		s.logger.Error("failed revoke Session on repository",
-			zap.Error(err),
-		)
-		return err
-	}
-	return nil
+func (s *SessionService) RevokeSession(ctx context.Context, sessionID string) error {
+	return s.repo.RevokeSession(ctx, sessionID)
 }
-func (s *SessionService) ExtendSession(session *model.Session) error {
-	err := s.repo.ExtendSession(session)
-	if err != nil {
-		s.logger.Error("failed extend Session on repository",
-			zap.Error(err),
-		)
-		return err
-	}
-	return nil
+
+func (s *SessionService) ExtendSession(ctx context.Context, sessionID string) error {
+	return s.repo.ExtendSession(ctx, sessionID)
 }
-func (s *SessionService) IsValid(session *model.Session) (bool, error) {
-	valid, err := s.repo.IsValid(session)
-	if err != nil {
-		s.logger.Error("failed check valid session Session on repository",
-			zap.Error(err),
-		)
-		return false, err
-	}
-	return valid, err
+
+func (s *SessionService) IsValid(ctx context.Context, sessionID string) (bool, error) {
+	return s.repo.IsValid(ctx, sessionID)
 }
-func (s *SessionService) GetUserIDBySession(session *model.Session) (int, error) {
-	userID, err := s.repo.GetUserIDBySession(session)
-	if err != nil {
-		s.logger.Error("failed extend Session on repository",
-			zap.Error(err),
-		)
-		return 0, err
-	}
-	return userID, nil
+
+func (s *SessionService) GetUserIDBySession(ctx context.Context, sessionID string) (int, error) {
+	return s.repo.GetUserIDBySession(ctx, sessionID)
 }

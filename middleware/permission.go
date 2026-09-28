@@ -1,32 +1,47 @@
 package middleware
 
 import (
-	"app-inventory/model"
+	"app-inventory/utils"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
-func (middlewareCostume *MiddlewareCostume) RequirePermission(code string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			session, _ := r.Cookie("session")
-			getSessionID := session.Value
-			sessionID := &model.Session{
-				SessionID: getSessionID,
-			}
-			userID, err := middlewareCostume.Service.SessionService.GetUserIDBySession(sessionID)
+// RequirePermission verifies role permission in Gin
+func (m *CustomMiddleware) RequirePermission(code string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		claims, ok := utils.GetClaimsFromGin(c)
+		if !ok || claims == nil || claims.UserID <= 0 {
+			utils.ResponseError(c, http.StatusUnauthorized, "Pengguna tidak terautentikasi", nil)
+			c.Abort()
+			return
+		}
 
-			allowed, err := middlewareCostume.Service.Permission.Allowed(userID, code)
-			if err != nil {
-				http.Error(w, "internal error", http.StatusInternalServerError)
-				return
-			}
+		// Super Admin bypass
+		if claims.Role == "super_admin" || claims.Role == "Super Admin" || claims.RoleID == 1 {
+			c.Next()
+			return
+		}
 
-			if !allowed {
-				http.Error(w, "forbidden", http.StatusForbidden)
-				return
-			}
+		allowed, err := m.Service.Permission.Allowed(c.Request.Context(), claims.UserID, code)
+		if err != nil {
+			m.Log.Error("Failed to check user permission",
+				zap.Int("user_id", claims.UserID),
+				zap.String("permission_code", code),
+				zap.Error(err),
+			)
+			utils.ResponseError(c, http.StatusInternalServerError, "Gagal memeriksa hak akses pengguna", nil)
+			c.Abort()
+			return
+		}
 
-			next.ServeHTTP(w, r)
-		})
+		if !allowed {
+			utils.ResponseError(c, http.StatusForbidden, "Akses ditolak: Anda tidak memiliki izin untuk tindakan ini ("+code+")", nil)
+			c.Abort()
+			return
+		}
+
+		c.Next()
 	}
 }

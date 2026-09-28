@@ -5,6 +5,7 @@ import (
 	"app-inventory/model"
 	"app-inventory/repository"
 	"app-inventory/utils"
+	"context"
 
 	"go.uber.org/zap"
 )
@@ -13,15 +14,15 @@ type WarehouseService struct {
 	repo   repository.WarehouseRepoInterface
 	logger *zap.Logger
 }
+
 type WarehouseServiceInterface interface {
-	GetAllWarehouse(page, limit int) ([]model.Warehouse, *dto.Pagination, error)
-	CreateWarehouse(Warehouse *model.Warehouse) error
-	UpdateWarehouse(id int, Warehouse *model.Warehouse) error
-	DeleteWarehouse(id int) error
-	GetWarehouseById(id int) (*model.Warehouse, error)
+	GetAllWarehouse(ctx context.Context, page, limit int) ([]model.Warehouse, *dto.Pagination, error)
+	CreateWarehouse(ctx context.Context, warehouse *model.Warehouse) error
+	UpdateWarehouse(ctx context.Context, id int, warehouse *model.Warehouse) error
+	DeleteWarehouse(ctx context.Context, id int) error
+	GetWarehouseById(ctx context.Context, id int) (*model.Warehouse, error)
 }
 
-// constructor
 func NewWarehouseService(repo repository.WarehouseRepoInterface, log *zap.Logger) WarehouseServiceInterface {
 	return &WarehouseService{
 		repo:   repo,
@@ -29,66 +30,57 @@ func NewWarehouseService(repo repository.WarehouseRepoInterface, log *zap.Logger
 	}
 }
 
-func (s *WarehouseService) GetAllWarehouse(page, limit int) ([]model.Warehouse, *dto.Pagination, error) {
-	warehouse, total, err := s.repo.GetAllWarehouse(page, limit)
+func (s *WarehouseService) GetAllWarehouse(ctx context.Context, page, limit int) ([]model.Warehouse, *dto.Pagination, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	warehouses, total, err := s.repo.GetAllWarehouse(ctx, page, limit)
 	if err != nil {
-		s.logger.Error("failed to connect service to read list Warehouse", zap.Error(err))
+		s.logger.Error("Failed to read warehouse list from repository", zap.Error(err))
 		return nil, nil, err
 	}
 	pagination := dto.Pagination{
 		CurrentPage: page,
 		Limit:       limit,
 		TotalPages:  utils.TotalPage(limit, int64(total)),
+		TotalItems:  int64(total),
 	}
-	return warehouse, &pagination, nil
+	return warehouses, &pagination, nil
 }
 
-func (s *WarehouseService) CreateWarehouse(Warehouse *model.Warehouse) error {
-	err := s.repo.CreateWarehouse(Warehouse)
-	if err != nil {
-		return err
-	}
-	return nil
+func (s *WarehouseService) CreateWarehouse(ctx context.Context, warehouse *model.Warehouse) error {
+	return s.repo.CreateWarehouse(ctx, warehouse)
 }
 
-func (s *WarehouseService) UpdateWarehouse(id int, Warehouse *model.Warehouse) error {
-	getWarehouse, err := s.repo.GetWarehouseByID(id)
+func (s *WarehouseService) UpdateWarehouse(ctx context.Context, id int, warehouse *model.Warehouse) error {
+	existing, err := s.repo.GetWarehouseByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	if Warehouse.Name != "" {
-		getWarehouse.Name = Warehouse.Name
+	if warehouse.Name != "" {
+		existing.Name = warehouse.Name
 	}
-	if Warehouse.Location != "" {
-		getWarehouse.Location = Warehouse.Location
+	if warehouse.Location != "" {
+		existing.Location = warehouse.Location
 	}
 
-	NewWarehouseUpdate := &model.Warehouse{
-		Name:     getWarehouse.Name,
-		Location: getWarehouse.Location,
-	}
-	err = s.repo.UpdateWarehouse(id, NewWarehouseUpdate)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-func (s *WarehouseService) DeleteWarehouse(id int) error {
-	err := s.repo.DeleteWarehouse(id)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.repo.UpdateWarehouse(ctx, id, existing)
 }
 
-// get warehouse by id
-func (s *WarehouseService) GetWarehouseById(id int) (*model.Warehouse, error) {
-	warehouse, err := s.repo.GetWarehouseByID(id)
+func (s *WarehouseService) DeleteWarehouse(ctx context.Context, id int) error {
+	return s.repo.DeleteWarehouse(ctx, id)
+}
+
+func (s *WarehouseService) GetWarehouseById(ctx context.Context, id int) (*model.Warehouse, error) {
+	warehouse, err := s.repo.GetWarehouseByID(ctx, id)
 	if err != nil {
-		s.logger.Error("failed to connect service to read warehouse by id", zap.Error(err))
+		s.logger.Error("Failed to read warehouse by id", zap.Error(err), zap.Int("id", id))
 		return nil, err
 	}
-
 	return warehouse, nil
 }

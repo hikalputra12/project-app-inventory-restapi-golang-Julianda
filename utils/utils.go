@@ -13,10 +13,10 @@ func StringToBool(name string) bool {
 	return result
 }
 
-func StringToInt(num string) int {
+func StringToInt(num string, defaultVal int) int {
 	result, err := strconv.Atoi(num)
-	if err != nil {
-		return 0
+	if err != nil || result <= 0 {
+		return defaultVal
 	}
 	return result
 }
@@ -25,11 +25,13 @@ func TotalPage(limit int, totalData int64) int {
 	if totalData <= 0 {
 		return 0
 	}
+	if limit <= 0 {
+		limit = 10
+	}
 
 	flimit := float64(limit)
 	fdata := float64(totalData)
 
 	res := math.Ceil(fdata / flimit)
-
 	return int(res)
 }

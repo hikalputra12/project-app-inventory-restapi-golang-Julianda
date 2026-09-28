@@ -5,11 +5,12 @@ import (
 	"app-inventory/model"
 	"app-inventory/service"
 	"app-inventory/utils"
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +19,6 @@ type TransactionHandler struct {
 	logger  *zap.Logger
 }
 
-// constructor
 func NewTransactionHandler(service service.TransactionServiceInterface, log *zap.Logger) TransactionHandler {
 	return TransactionHandler{
 		service: service,
@@ -26,166 +26,160 @@ func NewTransactionHandler(service service.TransactionServiceInterface, log *zap
 	}
 }
 
-func (h *TransactionHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
+func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 	var req dto.CreateTransactionRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("Failed to decode JSON body", zap.Error(err))
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format JSON tidak valid", nil)
 		return
 	}
-	//pengambilan id melalui cookie
-	cookie, _ := r.Cookie("session")
 
-	// 4. Konversi ke Integer (jika ID Anda berupa angka)
-	userId, _ := strconv.Atoi(cookie.Value)
+	if fieldErrors, err := utils.ValidateErrors(req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Validasi input gagal", fieldErrors)
+		return
+	}
+
+	// Retrieve authenticated user ID securely from Gin context
+	userID, ok := utils.GetUserIDFromGin(c)
+	if !ok || userID <= 0 {
+		utils.ResponseError(c, http.StatusUnauthorized, "Pengguna tidak terautentikasi", nil)
+		return
+	}
+
 	newTransaction := model.Transaction{
-		UserId:      userId,
+		UserId:      userID,
 		InventoryId: req.InventoryId,
 		Quantity:    req.Quantity,
 	}
-	err := h.service.CreateTransaction(&newTransaction)
+
+	err := h.service.CreateTransaction(c.Request.Context(), &newTransaction)
 	if err != nil {
-		h.logger.Error("failed create transaction on service",
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		h.logger.Error("Failed to create transaction", zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Create new Transaction succesfully",
-	})
 
+	resp := dto.TransactionByIdResponse{
+		ID:          newTransaction.ID,
+		UserID:      newTransaction.UserId,
+		InventoryID: newTransaction.InventoryId,
+		Name:        newTransaction.Name,
+		Quantity:    newTransaction.Quantity,
+		Price:       newTransaction.Price,
+		TotalPrice:  newTransaction.Quantity * newTransaction.Price,
+		CreatedAt:   newTransaction.CreatedAt.Format(time.RFC3339),
+	}
+
+	utils.ResponseSuccess(c, http.StatusCreated, "Transaksi berhasil dibuat", resp)
 }
 
-func (h *TransactionHandler) ListTransaction(w http.ResponseWriter, r *http.Request) {
-	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+func (h *TransactionHandler) ListTransaction(c *gin.Context) {
+	page := utils.StringToInt(c.DefaultQuery("page", "1"), 1)
+	limit := utils.StringToInt(c.DefaultQuery("limit", "10"), 10)
+
+	transactions, pagination, err := h.service.GetAllTransaction(c.Request.Context(), page, limit)
 	if err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid page", nil)
+		h.logger.Error("Failed to fetch transaction list", zap.Error(err))
+		utils.ResponseError(c, http.StatusInternalServerError, "Gagal memuat daftar transaksi: "+err.Error(), nil)
 		return
 	}
 
-	// config limit pagination
-	limit := 10
-
-	// Get data Transactions form service all Transactions
-	Transaction, pagination, err := h.service.GetAllTransaction(page, limit)
-	if err != nil {
-		h.logger.Error("failed get list transaction on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch Transaction: "+err.Error(), nil)
-		return
-	}
 	var response []dto.TransactionListResponse
-	for _, item := range Transaction {
+	for _, item := range transactions {
 		response = append(response, dto.TransactionListResponse{
-			Name:     item.Name,
-			Quantity: item.Quantity,
-			Price:    item.Price,
+			ID:          item.ID,
+			UserID:      item.UserId,
+			InventoryID: item.InventoryId,
+			Name:        item.Name,
+			Quantity:    item.Quantity,
+			Price:       item.Price,
+			TotalPrice:  item.Quantity * item.Price,
+			CreatedAt:   item.CreatedAt.Format(time.RFC3339),
 		})
-
 	}
-	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
+	if response == nil {
+		response = []dto.TransactionListResponse{}
+	}
 
+	utils.ResponsePagination(c, http.StatusOK, "Berhasil memuat daftar transaksi", response, *pagination)
 }
 
-func (h *TransactionHandler) UpdateTransaction(w http.ResponseWriter, r *http.Request) {
-
-	//mengambil id
-	idStr := chi.URLParam(r, "id")
-
+func (h *TransactionHandler) UpdateTransaction(c *gin.Context) {
+	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
-
-	if err != nil {
-		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+	if err != nil || id <= 0 {
+		utils.ResponseError(c, http.StatusBadRequest, "Format ID transaksi tidak valid", nil)
 		return
 	}
+
 	var req dto.UpdateTransactionRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format JSON tidak valid", nil)
 		return
 	}
-	//pengambilan id melalui cookie
-	cookie, _ := r.Cookie("session")
 
-	// 4. Konversi ke Integer (jika ID Anda berupa angka)
-	userId, _ := strconv.Atoi(cookie.Value)
+	if fieldErrors, err := utils.ValidateErrors(req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Validasi input gagal", fieldErrors)
+		return
+	}
 
 	newTransaction := model.Transaction{
-		UserId:   userId,
 		Quantity: req.Quantity,
 	}
-	err = h.service.UpdateTransaction(id, &newTransaction)
+
+	err = h.service.UpdateTransaction(c.Request.Context(), id, &newTransaction)
 	if err != nil {
-		h.logger.Error("failed update transaction on service",
-			zap.String("user_id", idStr),
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		h.logger.Error("Failed to update transaction", zap.Int("id", id), zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Update transaction succesfully",
-	})
 
+	utils.ResponseSuccess(c, http.StatusOK, "Transaksi berhasil diperbarui", map[string]int{"id": id, "quantity": req.Quantity})
 }
 
-func (h *TransactionHandler) DeleteTransaction(w http.ResponseWriter, r *http.Request) {
-
-	//mengambil id
-	idStr := chi.URLParam(r, "id")
-
+func (h *TransactionHandler) DeleteTransaction(c *gin.Context) {
+	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
-
-	if err != nil {
-		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+	if err != nil || id <= 0 {
+		utils.ResponseError(c, http.StatusBadRequest, "Format ID transaksi tidak valid", nil)
 		return
 	}
-	err = h.service.DeleteTransaction(id)
+
+	err = h.service.DeleteTransaction(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("failed delete transaction on service",
-			zap.String("user_id", idStr),
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusBadRequest, err.Error(), nil)
+		h.logger.Error("Failed to delete transaction", zap.Int("id", id), zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Delete transaction succesfully",
-	})
 
+	utils.ResponseSuccess(c, http.StatusOK, fmt.Sprintf("Transaksi ID %d berhasil dibatalkan dan stok dikembalikan", id), nil)
 }
 
-// get sale item by id
-func (h *TransactionHandler) GetTransactionById(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	transactionID, _ := strconv.Atoi(id)
-
-	// Get data Racks form service all Racks
-	transaction, err := h.service.GetTransactionById(transactionID)
-	if err != nil {
-		h.logger.Error("failed get sales item by id on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch assignments: "+err.Error(), nil)
+func (h *TransactionHandler) GetTransactionById(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format ID transaksi tidak valid", nil)
 		return
 	}
-	var response dto.TransactionByIdResponse
-	response = dto.TransactionByIdResponse{
-		Name:     transaction.Name,
-		Quantity: transaction.Quantity,
-		Price:    transaction.Price,
+
+	transaction, err := h.service.GetTransactionById(c.Request.Context(), id)
+	if err != nil {
+		h.logger.Error("Failed to fetch transaction by id", zap.Error(err), zap.Int("id", id))
+		utils.ResponseError(c, http.StatusNotFound, "Transaksi tidak ditemukan", nil)
+		return
 	}
-	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
+
+	response := dto.TransactionByIdResponse{
+		ID:          transaction.ID,
+		UserID:      transaction.UserId,
+		InventoryID: transaction.InventoryId,
+		Name:        transaction.Name,
+		Quantity:    transaction.Quantity,
+		Price:       transaction.Price,
+		TotalPrice:  transaction.Quantity * transaction.Price,
+		CreatedAt:   transaction.CreatedAt.Format(time.RFC3339),
+	}
+
+	utils.ResponseSuccess(c, http.StatusOK, "Berhasil mendapatkan data transaksi", response)
 }

@@ -5,122 +5,133 @@ import (
 	"app-inventory/model"
 	"app-inventory/repository"
 	"app-inventory/utils"
+	"context"
 
 	"go.uber.org/zap"
 )
 
 type InventoryService struct {
-	repo   repository.InventoryRepoInterface
-	logger *zap.Logger
+	repo       repository.InventoryRepoInterface
+	reportRepo repository.ReportRepoInterface
+	logger     *zap.Logger
 }
+
 type InventoryServiceInterface interface {
-	GetAllInventory(page, limit int) ([]model.Inventory, *dto.Pagination, error)
-	CheckStock(page, limit int) ([]model.Inventory, *dto.Pagination, error)
-	CreateInventory(inventory *model.Inventory) error
-	UpdateInventory(id int, inventory *model.Inventory) error
-	DeleteInventory(id int) error
-	GetInventoryById(id int) (*model.Inventory, error)
+	GetAllInventory(ctx context.Context, page, limit int) ([]model.Inventory, *dto.Pagination, error)
+	CheckStock(ctx context.Context, page, limit int) ([]model.Inventory, *dto.Pagination, error)
+	CreateInventory(ctx context.Context, inventory *model.Inventory) error
+	UpdateInventory(ctx context.Context, id int, req *dto.UpdateInventoryRequest) error
+	DeleteInventory(ctx context.Context, id int) error
+	GetInventoryById(ctx context.Context, id int) (*model.Inventory, error)
 }
 
-// constructor
-func NewInventoryService(repo repository.InventoryRepoInterface, log *zap.Logger) InventoryServiceInterface {
+func NewInventoryService(repo repository.InventoryRepoInterface, reportRepo repository.ReportRepoInterface, log *zap.Logger) InventoryServiceInterface {
 	return &InventoryService{
-		repo:   repo,
-		logger: log,
+		repo:       repo,
+		reportRepo: reportRepo,
+		logger:     log,
 	}
 }
 
-func (s *InventoryService) GetAllInventory(page, limit int) ([]model.Inventory, *dto.Pagination, error) {
-	Inventories, total, err := s.repo.GetAllInventory(page, limit)
+func (s *InventoryService) GetAllInventory(ctx context.Context, page, limit int) ([]model.Inventory, *dto.Pagination, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	inventories, total, err := s.repo.GetAllInventory(ctx, page, limit)
 	if err != nil {
-		s.logger.Error("failed to connect service to read list Inventory", zap.Error(err))
+		s.logger.Error("Failed to fetch inventory list from repository", zap.Error(err))
 		return nil, nil, err
 	}
 	pagination := dto.Pagination{
 		CurrentPage: page,
 		Limit:       limit,
 		TotalPages:  utils.TotalPage(limit, int64(total)),
+		TotalItems:  int64(total),
 	}
-	return Inventories, &pagination, nil
+	return inventories, &pagination, nil
 }
 
-func (s *InventoryService) CreateInventory(inventory *model.Inventory) error {
-	err := s.repo.CreateInventory(inventory)
+func (s *InventoryService) CreateInventory(ctx context.Context, inventory *model.Inventory) error {
+	err := s.repo.CreateInventory(ctx, inventory)
 	if err != nil {
-		s.logger.Error("failed created inventory on repository",
-			zap.Error(err),
-		)
+		s.logger.Error("Failed to create inventory in repository", zap.Error(err))
 		return err
 	}
+	s.reportRepo.InvalidateReportCache(ctx)
 	return nil
 }
 
-func (s *InventoryService) UpdateInventory(id int, inventory *model.Inventory) error {
-	getInventory, err := s.repo.GetInventoryByID(id)
+func (s *InventoryService) UpdateInventory(ctx context.Context, id int, req *dto.UpdateInventoryRequest) error {
+	existing, err := s.repo.GetInventoryByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	if inventory.Name != "" {
-		getInventory.Name = inventory.Name
+	if req.Name != "" {
+		existing.Name = req.Name
 	}
-	if inventory.Price != 0 {
-		getInventory.Price = inventory.Price
+	// Fixed: Pointers allow setting price or stock to 0
+	if req.Price != nil {
+		existing.Price = *req.Price
 	}
-	if inventory.Stock != 0 {
-		getInventory.Stock = inventory.Stock
+	if req.Stock != nil {
+		existing.Stock = *req.Stock
 	}
-	if inventory.Category_inventory_id != 0 {
-		getInventory.Category_inventory_id = inventory.Category_inventory_id
+	if req.Category_id != nil && *req.Category_id > 0 {
+		existing.Category_inventory_id = *req.Category_id
 	}
 
-	NewInventoryUpdate := &model.Inventory{
-		Name:                  getInventory.Name,
-		Price:                 getInventory.Price,
-		Stock:                 getInventory.Stock,
-		Category_inventory_id: getInventory.Category_inventory_id,
-	}
-	err = s.repo.UpdateInventory(id, NewInventoryUpdate)
+	err = s.repo.UpdateInventory(ctx, id, existing)
 	if err != nil {
-		s.logger.Error("failed updated inventory on repository",
-			zap.Error(err),
-		)
+		s.logger.Error("Failed to update inventory in repository", zap.Error(err))
 		return err
 	}
-	return nil
-}
-func (s *InventoryService) DeleteInventory(id int) error {
-	err := s.repo.DeleteInventory(id)
-	if err != nil {
-		s.logger.Error("failed delete inventory on repository",
-			zap.Error(err),
-		)
-		return err
-	}
+
+	s.reportRepo.InvalidateReportCache(ctx)
 	return nil
 }
 
-func (s *InventoryService) CheckStock(page, limit int) ([]model.Inventory, *dto.Pagination, error) {
-	Inventories, total, err := s.repo.CheckStock(page, limit)
+func (s *InventoryService) DeleteInventory(ctx context.Context, id int) error {
+	err := s.repo.DeleteInventory(ctx, id)
 	if err != nil {
-		s.logger.Error("failed to connect service to read list Inventory", zap.Error(err))
+		s.logger.Error("Failed to delete inventory in repository", zap.Error(err))
+		return err
+	}
+	s.reportRepo.InvalidateReportCache(ctx)
+	return nil
+}
+
+func (s *InventoryService) CheckStock(ctx context.Context, page, limit int) ([]model.Inventory, *dto.Pagination, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	inventories, total, err := s.repo.CheckStock(ctx, page, limit)
+	if err != nil {
+		s.logger.Error("Failed to check low stock inventory", zap.Error(err))
 		return nil, nil, err
 	}
 	pagination := dto.Pagination{
 		CurrentPage: page,
 		Limit:       limit,
 		TotalPages:  utils.TotalPage(limit, int64(total)),
+		TotalItems:  int64(total),
 	}
-	return Inventories, &pagination, nil
+	return inventories, &pagination, nil
 }
 
-// get inventory by id
-func (s *InventoryService) GetInventoryById(id int) (*model.Inventory, error) {
-	inventory, err := s.repo.GetInventoryByID(id)
+func (s *InventoryService) GetInventoryById(ctx context.Context, id int) (*model.Inventory, error) {
+	inventory, err := s.repo.GetInventoryByID(ctx, id)
 	if err != nil {
-		s.logger.Error("failed to connect service to read inventory by id", zap.Error(err))
+		s.logger.Error("Failed to fetch inventory by id", zap.Error(err), zap.Int("id", id))
 		return nil, err
 	}
-
 	return inventory, nil
 }

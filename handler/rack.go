@@ -5,11 +5,10 @@ import (
 	"app-inventory/model"
 	"app-inventory/service"
 	"app-inventory/utils"
-	"encoding/json"
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +17,6 @@ type RackHandler struct {
 	logger  *zap.Logger
 }
 
-// constructor
 func NewRackHandler(service service.RackServiceInterface, log *zap.Logger) RackHandler {
 	return RackHandler{
 		service: service,
@@ -26,152 +24,137 @@ func NewRackHandler(service service.RackServiceInterface, log *zap.Logger) RackH
 	}
 }
 
-func (h *RackHandler) ListRack(w http.ResponseWriter, r *http.Request) {
-	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+func (h *RackHandler) ListRack(c *gin.Context) {
+	page := utils.StringToInt(c.DefaultQuery("page", "1"), 1)
+	limit := utils.StringToInt(c.DefaultQuery("limit", "10"), 10)
+
+	racks, pagination, err := h.service.GetAllRack(c.Request.Context(), page, limit)
 	if err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid page", nil)
+		h.logger.Error("Failed to get all racks", zap.Error(err))
+		utils.ResponseError(c, http.StatusInternalServerError, "Gagal mengambil daftar rak: "+err.Error(), nil)
 		return
 	}
 
-	// config limit pagination
-	limit := 3
-
-	// Get data Racks form service all Racks
-	rack, pagination, err := h.service.GetAllRack(page, limit)
-	if err != nil {
-		h.logger.Error("failed get all rack on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch Rack: "+err.Error(), nil)
-		return
-	}
 	var response []dto.RackListResponse
-	for _, item := range rack {
+	for _, item := range racks {
 		response = append(response, dto.RackListResponse{
+			ID:                     item.ID,
 			Name:                   item.Name,
 			Warehouse_inventory_id: item.WarehouseInventoryId,
+			WarehouseName:          item.WarehouseInventory,
 		})
-
 	}
-	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
+	if response == nil {
+		response = []dto.RackListResponse{}
+	}
 
+	utils.ResponsePagination(c, http.StatusOK, "Berhasil memuat daftar rak", response, *pagination)
 }
 
-func (h *RackHandler) CreateRack(w http.ResponseWriter, r *http.Request) {
+func (h *RackHandler) CreateRack(c *gin.Context) {
 	var req dto.CreateRackRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("Failed to decode JSON body", zap.Error(err))
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format JSON tidak valid", nil)
 		return
 	}
+
+	if fieldErrors, err := utils.ValidateErrors(req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Validasi input gagal", fieldErrors)
+		return
+	}
+
 	newRack := model.Rack{
 		Name:                 req.Name,
 		WarehouseInventoryId: req.Warehouse_inventory_id,
 	}
-	err := h.service.CreateRack(&newRack)
+
+	err := h.service.CreateRack(c.Request.Context(), &newRack)
 	if err != nil {
-		h.logger.Error("failed create rack on service",
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		h.logger.Error("Failed to create rack", zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, "Gagal membuat rak: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Create new Rack succesfully",
-	})
 
+	utils.ResponseSuccess(c, http.StatusCreated, "Rak baru berhasil dibuat", map[string]interface{}{
+		"id":   newRack.ID,
+		"name": newRack.Name,
+	})
 }
 
-func (h *RackHandler) UpdateRack(w http.ResponseWriter, r *http.Request) {
-	//mengambil id
-	idStr := chi.URLParam(r, "id")
-
+func (h *RackHandler) UpdateRack(c *gin.Context) {
+	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
-
-	if err != nil {
-		h.logger.Error("failed update rack on service",
-			zap.String("user_id", idStr),
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+	if err != nil || id <= 0 {
+		utils.ResponseError(c, http.StatusBadRequest, "Format ID rak tidak valid", nil)
 		return
 	}
+
 	var req dto.UpdateRackRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("Failed to decode JSON body", zap.Error(err))
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format JSON tidak valid", nil)
 		return
 	}
 
-	newRack := model.Rack{
+	if fieldErrors, err := utils.ValidateErrors(req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Validasi input gagal", fieldErrors)
+		return
+	}
+
+	updateRack := model.Rack{
 		Name:                 req.Name,
 		WarehouseInventoryId: req.Warehouse_inventory_id,
 	}
-	err = h.service.UpdateRack(id, &newRack)
+
+	err = h.service.UpdateRack(c.Request.Context(), id, &updateRack)
 	if err != nil {
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		h.logger.Error("Failed to update rack", zap.Int("id", id), zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, "Gagal memperbarui rak: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Update user succesfully",
-	})
 
+	utils.ResponseSuccess(c, http.StatusOK, "Rak berhasil diperbarui", map[string]int{"id": id})
 }
 
-func (h *RackHandler) DeleteRack(w http.ResponseWriter, r *http.Request) {
-	//mengambil id
-	idStr := chi.URLParam(r, "id")
-
+func (h *RackHandler) DeleteRack(c *gin.Context) {
+	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
-
-	if err != nil {
-		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+	if err != nil || id <= 0 {
+		utils.ResponseError(c, http.StatusBadRequest, "Format ID rak tidak valid", nil)
 		return
 	}
-	err = h.service.DeleteRack(id)
+
+	err = h.service.DeleteRack(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("failed delete rack on service",
-			zap.String("user_id", idStr),
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		h.logger.Error("Failed to delete rack", zap.Int("id", id), zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, "Gagal menghapus rak: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Delete rack succesfully ",
-	})
 
+	utils.ResponseSuccess(c, http.StatusOK, "Rak berhasil dihapus", map[string]int{"id": id})
 }
 
-// get rack by id
-func (h *RackHandler) GetRackById(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	RackID, _ := strconv.Atoi(id)
-
-	// Get data Racks form service all Racks
-	rack, err := h.service.GetRackById(RackID)
-	if err != nil {
-		h.logger.Error("failed get Rack by id on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch assignments: "+err.Error(), nil)
+func (h *RackHandler) GetRackById(c *gin.Context) {
+	idStr := c.Param("id")
+	rackID, err := strconv.Atoi(idStr)
+	if err != nil || rackID <= 0 {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format ID rak tidak valid", nil)
 		return
 	}
-	var response dto.RackByIdResponse
-	response = dto.RackByIdResponse{
-		Name:               rack.Name,
-		WarehouseInventory: rack.WarehouseInventory,
+
+	rack, err := h.service.GetRackById(c.Request.Context(), rackID)
+	if err != nil {
+		h.logger.Error("Failed to get rack by id", zap.Error(err), zap.Int("id", rackID))
+		utils.ResponseError(c, http.StatusNotFound, "Rak tidak ditemukan", nil)
+		return
 	}
-	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
+
+	response := dto.RackByIdResponse{
+		ID:                   rack.ID,
+		Name:                 rack.Name,
+		WarehouseInventory:   rack.WarehouseInventory,
+		WarehouseInventoryId: rack.WarehouseInventoryId,
+	}
+	utils.ResponseSuccess(c, http.StatusOK, "Berhasil mendapatkan data rak", response)
 }

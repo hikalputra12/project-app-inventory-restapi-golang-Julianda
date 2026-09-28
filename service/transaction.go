@@ -5,83 +5,90 @@ import (
 	"app-inventory/model"
 	"app-inventory/repository"
 	"app-inventory/utils"
+	"context"
 
 	"go.uber.org/zap"
 )
 
 type TransactionService struct {
-	repo   repository.TransactionRepoInterface
-	logger *zap.Logger
-}
-type TransactionServiceInterface interface {
-	GetAllTransaction(page, limit int) ([]model.Transaction, *dto.Pagination, error)
-	CreateTransaction(Transaction *model.Transaction) error
-	UpdateTransaction(id int, Transaction *model.Transaction) error
-	DeleteTransaction(id int) error
-	GetTransactionById(id int) (*model.Transaction, error)
+	repo       repository.TransactionRepoInterface
+	reportRepo repository.ReportRepoInterface
+	logger     *zap.Logger
 }
 
-// constructor
-func NewTransactionService(repo repository.TransactionRepoInterface, log *zap.Logger) TransactionServiceInterface {
+type TransactionServiceInterface interface {
+	GetAllTransaction(ctx context.Context, page, limit int) ([]model.Transaction, *dto.Pagination, error)
+	CreateTransaction(ctx context.Context, transaction *model.Transaction) error
+	UpdateTransaction(ctx context.Context, id int, transaction *model.Transaction) error
+	DeleteTransaction(ctx context.Context, id int) error
+	GetTransactionById(ctx context.Context, id int) (*model.Transaction, error)
+}
+
+func NewTransactionService(repo repository.TransactionRepoInterface, reportRepo repository.ReportRepoInterface, log *zap.Logger) TransactionServiceInterface {
 	return &TransactionService{
-		repo:   repo,
-		logger: log,
+		repo:       repo,
+		reportRepo: reportRepo,
+		logger:     log,
 	}
 }
 
-func (s *TransactionService) CreateTransaction(Transaction *model.Transaction) error {
-	err := s.repo.CreateTransaction(Transaction)
+func (s *TransactionService) CreateTransaction(ctx context.Context, transaction *model.Transaction) error {
+	err := s.repo.CreateTransaction(ctx, transaction)
 	if err != nil {
-		s.logger.Error("failed create transaction on repository",
-			zap.Error(err),
-		)
+		s.logger.Error("Failed to create transaction in repository", zap.Error(err))
 		return err
 	}
+	s.reportRepo.InvalidateReportCache(ctx)
 	return nil
 }
 
-func (s *TransactionService) GetAllTransaction(page, limit int) ([]model.Transaction, *dto.Pagination, error) {
-	Transaction, total, err := s.repo.GetAllTransaction(page, limit)
+func (s *TransactionService) GetAllTransaction(ctx context.Context, page, limit int) ([]model.Transaction, *dto.Pagination, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	transactions, total, err := s.repo.GetAllTransaction(ctx, page, limit)
 	if err != nil {
-		s.logger.Error("failed to connect service to read list Transaction", zap.Error(err))
+		s.logger.Error("Failed to read transaction list from repository", zap.Error(err))
 		return nil, nil, err
 	}
 	pagination := dto.Pagination{
 		CurrentPage: page,
 		Limit:       limit,
 		TotalPages:  utils.TotalPage(limit, int64(total)),
+		TotalItems:  int64(total),
 	}
-	return Transaction, &pagination, nil
+	return transactions, &pagination, nil
 }
 
-func (s *TransactionService) UpdateTransaction(id int, Transaction *model.Transaction) error {
-	err := s.repo.UpdateTransaction(id, Transaction)
+func (s *TransactionService) UpdateTransaction(ctx context.Context, id int, transaction *model.Transaction) error {
+	err := s.repo.UpdateTransaction(ctx, id, transaction)
 	if err != nil {
-		s.logger.Error("failed update transaction on repository",
-			zap.Error(err),
-		)
+		s.logger.Error("Failed to update transaction in repository", zap.Error(err), zap.Int("id", id))
 		return err
 	}
-	return nil
-}
-func (s *TransactionService) DeleteTransaction(id int) error {
-	err := s.repo.DeleteTransaction(id)
-	if err != nil {
-		s.logger.Error("failed delete transaction on repository",
-			zap.Error(err),
-		)
-		return err
-	}
+	s.reportRepo.InvalidateReportCache(ctx)
 	return nil
 }
 
-// get sale item by id
-func (s *TransactionService) GetTransactionById(id int) (*model.Transaction, error) {
-	transaction, err := s.repo.GetTransactionById(id)
+func (s *TransactionService) DeleteTransaction(ctx context.Context, id int) error {
+	err := s.repo.DeleteTransaction(ctx, id)
 	if err != nil {
-		s.logger.Error("failed to connect service to read sales item by id", zap.Error(err))
+		s.logger.Error("Failed to delete transaction in repository", zap.Error(err), zap.Int("id", id))
+		return err
+	}
+	s.reportRepo.InvalidateReportCache(ctx)
+	return nil
+}
+
+func (s *TransactionService) GetTransactionById(ctx context.Context, id int) (*model.Transaction, error) {
+	transaction, err := s.repo.GetTransactionById(ctx, id)
+	if err != nil {
+		s.logger.Error("Failed to read transaction by id from repository", zap.Error(err), zap.Int("id", id))
 		return nil, err
 	}
-
 	return transaction, nil
 }

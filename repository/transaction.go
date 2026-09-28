@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -14,213 +15,256 @@ type TransactionRepo struct {
 	DB     database.PgxIface
 	Logger *zap.Logger
 }
+
 type TransactionRepoInterface interface {
-	GetAllTransaction(page, limit int) ([]model.Transaction, int, error)
-	CreateTransaction(Transaction *model.Transaction) error
-	UpdateTransaction(id int, Transaction *model.Transaction) error
-	DeleteTransaction(id int) error
-	GetTransactionById(id int) (*model.Transaction, error)
+	GetAllTransaction(ctx context.Context, page, limit int) ([]model.Transaction, int, error)
+	CreateTransaction(ctx context.Context, transaction *model.Transaction) error
+	UpdateTransaction(ctx context.Context, id int, transaction *model.Transaction) error
+	DeleteTransaction(ctx context.Context, id int) error
+	GetTransactionById(ctx context.Context, id int) (*model.Transaction, error)
 }
 
-// constructor
-func NewTransactionRepo(db database.PgxIface,
-	log *zap.Logger) TransactionRepoInterface {
+func NewTransactionRepo(db database.PgxIface, log *zap.Logger) TransactionRepoInterface {
 	return &TransactionRepo{
 		DB:     db,
 		Logger: log,
 	}
 }
 
-func (r *TransactionRepo) CreateTransaction(transaction *model.Transaction) error {
-	// transaksi untuk insert dan edit secara bersamaan dengan menggunakan tx
-	tx, err := r.DB.Begin(context.Background())
+func (r *TransactionRepo) CreateTransaction(ctx context.Context, transaction *model.Transaction) error {
+	tx, err := r.DB.Begin(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(ctx)
 
-	queryInsert := `
-        INSERT INTO sales_item (user_id, inventory_id, quantity, price, created_at, updated_at)
-SELECT $1, $2, $3, price, $4, $5  
-FROM inventories 
-WHERE inventory_id = $2        
-RETURNING sales_item_id
-    `
+	// 1. Lock inventory row and verify current stock
+	var currentStock int
+	var currentPrice int
+	queryCheck := `SELECT stock, price FROM inventories WHERE inventory_id = $1 AND deleted_at IS NULL FOR UPDATE`
+	err = tx.QueryRow(ctx, queryCheck, transaction.InventoryId).Scan(&currentStock, &currentPrice)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return fmt.Errorf("barang inventaris dengan ID %d tidak ditemukan", transaction.InventoryId)
+		}
+		return fmt.Errorf("gagal mengecek inventaris: %w", err)
+	}
+
+	if currentStock < transaction.Quantity {
+		return fmt.Errorf("stok barang tidak mencukupi (tersedia: %d, diminta: %d)", currentStock, transaction.Quantity)
+	}
+
 	now := time.Now()
-
-	err = tx.QueryRow(context.Background(), queryInsert,
+	// 2. Insert into sales_item
+	queryInsert := `
+		INSERT INTO sales_item (user_id, inventory_id, quantity, price, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING sales_item_id
+	`
+	err = tx.QueryRow(ctx, queryInsert,
 		transaction.UserId,
 		transaction.InventoryId,
 		transaction.Quantity,
+		currentPrice,
 		now, now,
 	).Scan(&transaction.ID)
-
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal create transaksi penjualan item inventory",
-			zap.Error(err),
-			zap.String("query", queryInsert),
-		)
+		r.Logger.Error("Failed to insert sales item", zap.Error(err))
 		return err
 	}
 
-	//query untuk edit stock di inventory
-	queryUpdate := `
-        UPDATE inventories 
-        SET stock = stock - $1, updated_at = $2
-        WHERE inventory_id = $3 AND stock >= $1
-    `
-
-	cmdTag, err := tx.Exec(context.Background(), queryUpdate, transaction.Quantity, now, transaction.InventoryId)
+	// 3. Deduct stock safely
+	queryUpdateStock := `
+		UPDATE inventories 
+		SET stock = stock - $1, updated_at = $2
+		WHERE inventory_id = $3
+	`
+	_, err = tx.Exec(ctx, queryUpdateStock, transaction.Quantity, now, transaction.InventoryId)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal mengubah stok item di tabel inventoris",
-			zap.Error(err),
-			zap.String("query", queryUpdate),
-		)
+		r.Logger.Error("Failed to update inventory stock", zap.Error(err))
 		return err
 	}
 
-	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("gagal update stok: stok tidak cukup atau barang tidak ditemukan")
-	}
-
+	transaction.Price = currentPrice
 	transaction.CreatedAt = now
 	transaction.UpdatedAt = now
 
-	return tx.Commit(context.Background())
+	return tx.Commit(ctx)
 }
 
-// untuk membaca Transaction yang ada
-func (r *TransactionRepo) GetAllTransaction(page, limit int) ([]model.Transaction, int, error) {
-
+func (r *TransactionRepo) GetAllTransaction(ctx context.Context, page, limit int) ([]model.Transaction, int, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
 	offset := (page - 1) * limit
+
 	var total int
 	countQuery := `SELECT COUNT(*) FROM sales_item WHERE deleted_at IS NULL`
-	err := r.DB.QueryRow(context.Background(), countQuery).Scan(&total)
+	err := r.DB.QueryRow(ctx, countQuery).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
-	query := `SELECT i.name,t.quantity,t.price FROM sales_item t
-	JOIN inventories i ON t.inventory_id = i.inventory_id
-	ORDER BY sales_item_id ASC
-LIMIT $1 OFFSET $2;`
-	rows, err := r.DB.Query(context.Background(), query, limit, offset)
-	if err != nil {
 
+	query := `SELECT 
+		t.sales_item_id,
+		COALESCE(t.user_id, 0),
+		t.inventory_id,
+		i.name,
+		t.quantity,
+		t.price,
+		t.created_at
+	FROM sales_item t
+	JOIN inventories i ON t.inventory_id = i.inventory_id
+	WHERE t.deleted_at IS NULL
+	ORDER BY t.sales_item_id DESC
+	LIMIT $1 OFFSET $2;`
+
+	rows, err := r.DB.Query(ctx, query, limit, offset)
+	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
-	var transaction []model.Transaction
+
+	var transactions []model.Transaction
 	for rows.Next() {
 		var t model.Transaction
-		err := rows.Scan(&t.Name, &t.Quantity, &t.Price)
+		err := rows.Scan(&t.ID, &t.UserId, &t.InventoryId, &t.Name, &t.Quantity, &t.Price, &t.CreatedAt)
 		if err != nil {
 			return nil, 0, err
 		}
-		transaction = append(transaction, t)
+		transactions = append(transactions, t)
 	}
-	return transaction, total, nil
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return transactions, total, nil
 }
 
-func (r *TransactionRepo) UpdateTransaction(id int, transaction *model.Transaction) error {
-	ctx := context.Background()
-
-	// 1. MULAI TRANSAKSI
+func (r *TransactionRepo) UpdateTransaction(ctx context.Context, id int, transaction *model.Transaction) error {
 	tx, err := r.DB.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
-	// AMBIL DATA LAMA
-	// Kita perlu tahu inventory_id mana yang diedit & berapa jumlah awalnya
+	// 1. Lock existing sales item
 	var oldQty int
 	var inventoryID int
-
-	// Gunakan FOR UPDATE untuk mengunci baris agar aman dari race condition
-	queryGetOld := `SELECT quantity, inventory_id FROM sales_item WHERE sales_item_id = $1 FOR UPDATE`
+	queryGetOld := `SELECT quantity, inventory_id FROM sales_item WHERE sales_item_id = $1 AND deleted_at IS NULL FOR UPDATE`
 	err = tx.QueryRow(ctx, queryGetOld, id).Scan(&oldQty, &inventoryID)
 	if err != nil {
-		return fmt.Errorf("transaksi tidak ditemukan: %w", err)
+		if err == pgx.ErrNoRows {
+			return fmt.Errorf("transaksi tidak ditemukan atau sudah dihapus")
+		}
+		return fmt.Errorf("gagal memeriksa transaksi: %w", err)
 	}
 
-	// HITUNG SELISIH (PERUBAHAN)
-	// Rumus: Baru - Lama
 	change := transaction.Quantity - oldQty
-
-	// Jika tidak ada perubahan jumlah, langsung return (hemat proses DB)
 	if change == 0 {
 		return nil
 	}
 
+	// 2. Lock inventory row
+	var currentStock int
+	queryCheckStock := `SELECT stock FROM inventories WHERE inventory_id = $1 AND deleted_at IS NULL FOR UPDATE`
+	err = tx.QueryRow(ctx, queryCheckStock, inventoryID).Scan(&currentStock)
+	if err != nil {
+		return fmt.Errorf("gagal memeriksa stok barang: %w", err)
+	}
+
+	// If increasing purchase quantity, check stock
+	if change > 0 && currentStock < change {
+		return fmt.Errorf("stok gudang tidak mencukupi untuk penambahan jumlah (stok tersisa: %d)", currentStock)
+	}
+
 	now := time.Now()
 
-	// UPDATE SALES_ITEM (Simpan jumlah baru)
-	queryUpdateItem := `UPDATE sales_item SET quantity=$1, updated_at=$2 WHERE sales_item_id=$3`
+	// 3. Update sales_item quantity
+	queryUpdateItem := `UPDATE sales_item SET quantity = $1, updated_at = $2 WHERE sales_item_id = $3`
 	_, err = tx.Exec(ctx, queryUpdateItem, transaction.Quantity, now, id)
 	if err != nil {
 		return err
 	}
 
-	// UPDATE STOCK INVENTORY (Gunakan Selisih)
-	// Rumus: stock = stock - change
-	// Jika change positif (nambah beli 2): stock - 2 (Stok berkurang)
-	// Jika change negatif (batal beli 2): stock - (-2) => stock + 2 (Stok balik)
-	queryUpdateStock := `
-        UPDATE inventories 
-        SET stock = stock - $1, updated_at = $2
-        WHERE inventory_id = $3 AND stock >= $1
-    `
-
-	// Perhatikan parameter: $1 diisi 'change' (selisih), bukan total quantity
-	cmdTag, err := tx.Exec(ctx, queryUpdateStock, change, now, inventoryID)
+	// 4. Update inventory stock
+	queryUpdateStock := `UPDATE inventories SET stock = stock - $1, updated_at = $2 WHERE inventory_id = $3`
+	_, err = tx.Exec(ctx, queryUpdateStock, change, now, inventoryID)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal update stock transaksi",
-			zap.Error(err),
-			zap.String("query", queryUpdateStock),
-		)
 		return err
 	}
 
-	// Validasi: Jika change positif (mengurangi stok) tapi stok tidak cukup
-	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("gagal update: stok gudang tidak mencukupi untuk penambahan jumlah")
-	}
-
-	transaction.CreatedAt = now
+	transaction.InventoryId = inventoryID
 	transaction.UpdatedAt = now
 
-	// 6. COMMIT
 	return tx.Commit(ctx)
 }
 
-// delete Transaction
-func (r *TransactionRepo) DeleteTransaction(id int) error {
-	query := `DELETE FROM sales_item
-			 where sales_item_id = $1`
-
-	_, err := r.DB.Exec(context.Background(), query, id)
+func (r *TransactionRepo) DeleteTransaction(ctx context.Context, id int) error {
+	tx, err := r.DB.Begin(ctx)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal cmebnghapus transaksi",
-			zap.Error(err),
-			zap.String("query", query),
-		)
 		return err
 	}
-	return nil
+	defer tx.Rollback(ctx)
+
+	// 1. Lock and retrieve transaction details
+	var qty int
+	var inventoryID int
+	queryGet := `SELECT quantity, inventory_id FROM sales_item WHERE sales_item_id = $1 AND deleted_at IS NULL FOR UPDATE`
+	err = tx.QueryRow(ctx, queryGet, id).Scan(&qty, &inventoryID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return fmt.Errorf("transaksi tidak ditemukan atau sudah dihapus")
+		}
+		return err
+	}
+
+	now := time.Now()
+
+	// 2. Soft delete sales_item
+	querySoftDelete := `UPDATE sales_item SET deleted_at = $1, updated_at = $1 WHERE sales_item_id = $2`
+	_, err = tx.Exec(ctx, querySoftDelete, now, id)
+	if err != nil {
+		return err
+	}
+
+	// 3. RESTORE INVENTORY STOCK (Fixing critical stock loss bug!)
+	queryRestoreStock := `UPDATE inventories SET stock = stock + $1, updated_at = $2 WHERE inventory_id = $3`
+	_, err = tx.Exec(ctx, queryRestoreStock, qty, now, inventoryID)
+	if err != nil {
+		return fmt.Errorf("gagal mengembalikan stok inventaris: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
 
-// untuk membaca sales_item berdarsaskan id
-func (r *TransactionRepo) GetTransactionById(id int) (*model.Transaction, error) {
+func (r *TransactionRepo) GetTransactionById(ctx context.Context, id int) (*model.Transaction, error) {
 	var transaction model.Transaction
-	query := `SELECT i.name, s.quantity, s.price FROM sales_item s
+	query := `SELECT 
+		s.sales_item_id,
+		COALESCE(s.user_id, 0),
+		s.inventory_id,
+		i.name, 
+		s.quantity, 
+		s.price,
+		s.created_at
+	FROM sales_item s
 	JOIN inventories i ON s.inventory_id = i.inventory_id
-WHERE sales_item_id = $1;`
-	err := r.DB.QueryRow(context.Background(), query, id).Scan(&transaction.Name, &transaction.Quantity, &transaction.Price)
+	WHERE s.sales_item_id = $1 AND s.deleted_at IS NULL;`
+
+	err := r.DB.QueryRow(ctx, query, id).Scan(
+		&transaction.ID,
+		&transaction.UserId,
+		&transaction.InventoryId,
+		&transaction.Name,
+		&transaction.Quantity,
+		&transaction.Price,
+		&transaction.CreatedAt,
+	)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal mendapatkan sale item  berdarsaskan id",
-			zap.Error(err),
-			zap.String("query", query),
-		)
 		return nil, err
 	}
 	return &transaction, nil

@@ -2,11 +2,11 @@ package model
 
 type Inventory struct {
 	Model
-	Name                  string
-	Price                 int
-	Stock                 int
-	Category              string
-	Rack                  string
-	Warehouse             string
-	Category_inventory_id int
+	Name                  string `json:"name"`
+	Price                 int    `json:"price"`
+	Stock                 int    `json:"stock"`
+	Category              string `json:"category,omitempty"`
+	Rack                  string `json:"rack,omitempty"`
+	Warehouse             string `json:"warehouse,omitempty"`
+	Category_inventory_id int    `json:"category_inventory_id"`
 }

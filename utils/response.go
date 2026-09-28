@@ -2,8 +2,8 @@ package utils
 
 import (
 	"app-inventory/dto"
-	"encoding/json"
-	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Response struct {
@@ -13,62 +13,35 @@ type Response struct {
 	Errors  any    `json:"errors,omitempty"`
 }
 
-func ResponseError(w http.ResponseWriter, code int, message string, errs interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
+// ResponseSuccess sends a successful JSON response with Gin
+func ResponseSuccess(c *gin.Context, code int, message string, data any) {
+	c.JSON(code, Response{
+		Status:  true,
+		Message: message,
+		Data:    data,
+	})
+}
 
-	response := Response{
+// ResponseError sends an error JSON response with Gin
+func ResponseError(c *gin.Context, code int, message string, errs any) {
+	c.JSON(code, Response{
 		Status:  false,
 		Message: message,
 		Errors:  errs,
-	}
-
-	json.NewEncoder(w).Encode(response)
+	})
 }
 
-// ResponseJSON digunakan untuk mengirim respon sukses (200, 201)
-func ResponseJSON(w http.ResponseWriter, code int, message string, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-
-	response := Response{
-		Status:  true,
-		Message: message,
-		Data:    data,
-	}
-
-	json.NewEncoder(w).Encode(response)
-}
-func ResponseSuccess(w http.ResponseWriter, code int, message string, data any) {
-	response := Response{
-		Status:  true,
-		Message: message,
-		Data:    data,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(response)
+// ResponseBadRequest sends a 400/error JSON response with Gin
+func ResponseBadRequest(c *gin.Context, code int, message string, errs any) {
+	ResponseError(c, code, message, errs)
 }
 
-func ResponseBadRequest(w http.ResponseWriter, code int, message string, errors any) {
-	response := Response{
-		Status:  false,
-		Message: message,
-		Errors:  errors,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(response)
-}
-
-func ResponsePagination(w http.ResponseWriter, code int, message string, data any, pagination dto.Pagination) {
-	response := map[string]interface{}{
+// ResponsePagination sends a paginated JSON response with Gin
+func ResponsePagination(c *gin.Context, code int, message string, data any, pagination dto.Pagination) {
+	c.JSON(code, gin.H{
 		"status":     true,
 		"message":    message,
 		"data":       data,
 		"pagination": pagination,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(response)
+	})
 }

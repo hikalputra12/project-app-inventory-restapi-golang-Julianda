@@ -6,6 +6,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -13,121 +14,134 @@ type WarehouseRepo struct {
 	DB     database.PgxIface
 	Logger *zap.Logger
 }
+
 type WarehouseRepoInterface interface {
-	GetAllWarehouse(page, limit int) ([]model.Warehouse, int, error)
-	CreateWarehouse(Warehouse *model.Warehouse) error
-	UpdateWarehouse(id int, Warehouse *model.Warehouse) error
-	DeleteWarehouse(id int) error
-	GetWarehouseByID(id int) (*model.Warehouse, error)
+	GetAllWarehouse(ctx context.Context, page, limit int) ([]model.Warehouse, int, error)
+	CreateWarehouse(ctx context.Context, warehouse *model.Warehouse) error
+	UpdateWarehouse(ctx context.Context, id int, warehouse *model.Warehouse) error
+	DeleteWarehouse(ctx context.Context, id int) error
+	GetWarehouseByID(ctx context.Context, id int) (*model.Warehouse, error)
 }
 
-// constructor
-func NewWarehouseRepo(db database.PgxIface,
-	log *zap.Logger) WarehouseRepoInterface {
+func NewWarehouseRepo(db database.PgxIface, log *zap.Logger) WarehouseRepoInterface {
 	return &WarehouseRepo{
 		DB:     db,
 		Logger: log,
 	}
 }
 
-func (r *WarehouseRepo) CreateWarehouse(Warehouse *model.Warehouse) error {
-	query := `INSERT INTO warehouse_inventory ("name", "location", created_at, updated_at)
-VALUES ($1, $2, $3, $4) RETURNING warehouse_inventory_id`
+func (r *WarehouseRepo) CreateWarehouse(ctx context.Context, warehouse *model.Warehouse) error {
+	query := `INSERT INTO warehouse_inventory (name, location, created_at, updated_at)
+			VALUES ($1, $2, $3, $4) RETURNING warehouse_inventory_id`
 
 	now := time.Now()
-	err := r.DB.QueryRow(context.Background(), query, Warehouse.Name, Warehouse.Location, now, now).Scan(&Warehouse.ID)
+	err := r.DB.QueryRow(ctx, query, warehouse.Name, warehouse.Location, now, now).Scan(&warehouse.ID)
 	if err != nil {
-		r.Logger.Error("failed to insert a new warehouse to database",
+		r.Logger.Error("Failed to insert warehouse",
 			zap.Error(err),
-			zap.String("warehouse_name: %s", Warehouse.Name),
+			zap.String("name", warehouse.Name),
 		)
 		return err
 	}
-	Warehouse.CreatedAt = now
-	Warehouse.UpdatedAt = now
+	warehouse.CreatedAt = now
+	warehouse.UpdatedAt = now
 	return nil
 }
 
-// untuk membaca Warehouse yang ada
-func (r *WarehouseRepo) GetAllWarehouse(page, limit int) ([]model.Warehouse, int, error) {
-
-	//menghitung offset
+func (r *WarehouseRepo) GetAllWarehouse(ctx context.Context, page, limit int) ([]model.Warehouse, int, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
 	offset := (page - 1) * limit
-	// get total data for pagination
+
 	var total int
 	countQuery := `SELECT COUNT(*) FROM warehouse_inventory WHERE deleted_at IS NULL`
-	err := r.DB.QueryRow(context.Background(), countQuery).Scan(&total)
+	err := r.DB.QueryRow(ctx, countQuery).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
-	query := `SELECT name FROM warehouse_inventory
-	ORDER BY warehouse_inventory_id ASC
-LIMIT $1 OFFSET $2;`
-	rows, err := r.DB.Query(context.Background(), query, limit, offset)
+
+	query := `SELECT warehouse_inventory_id, name, location 
+		FROM warehouse_inventory
+		WHERE deleted_at IS NULL
+		ORDER BY warehouse_inventory_id ASC
+		LIMIT $1 OFFSET $2;`
+
+	rows, err := r.DB.Query(ctx, query, limit, offset)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal mendapatkan data jenis gudang",
+		r.Logger.Error("Database Query Error: Failed to get warehouse list",
 			zap.Error(err),
-			zap.String("query", query),
 		)
 		return nil, 0, err
 	}
 	defer rows.Close()
-	var Warehouse []model.Warehouse
+
+	var warehouses []model.Warehouse
 	for rows.Next() {
 		var t model.Warehouse
-		err := rows.Scan(&t.Name)
+		err := rows.Scan(&t.ID, &t.Name, &t.Location)
 		if err != nil {
 			return nil, 0, err
 		}
-		Warehouse = append(Warehouse, t)
+		warehouses = append(warehouses, t)
 	}
-	return Warehouse, total, nil
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return warehouses, total, nil
 }
 
-// update Warehouse
-func (r *WarehouseRepo) UpdateWarehouse(id int, Warehouse *model.Warehouse) error {
-	query := `UPDATE Warehouse_inventory
-			SET name=$1,location=$2,updated_at=$3 WHERE warehouse_inventory_id=$4`
+func (r *WarehouseRepo) UpdateWarehouse(ctx context.Context, id int, warehouse *model.Warehouse) error {
+	query := `UPDATE warehouse_inventory
+			SET name = $1, location = $2, updated_at = $3 
+			WHERE warehouse_inventory_id = $4 AND deleted_at IS NULL`
+
 	now := time.Now()
-	_, err := r.DB.Exec(context.Background(), query, Warehouse.Name, Warehouse.Location, now, id)
+	cmdTag, err := r.DB.Exec(ctx, query, warehouse.Name, warehouse.Location, now, id)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal mengubah jenis gudang",
+		r.Logger.Error("Database Query Error: Failed to update warehouse",
 			zap.Error(err),
-			zap.String("query", query),
+			zap.Int("warehouse_id", id),
 		)
 		return err
 	}
-	Warehouse.UpdatedAt = now
+	if cmdTag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	warehouse.UpdatedAt = now
 	return nil
 }
 
-// delete Warehouse
-func (r *WarehouseRepo) DeleteWarehouse(id int) error {
-	query := `DELETE FROM warehouse_inventory
-			 where warehouse_inventory_id = $1`
+func (r *WarehouseRepo) DeleteWarehouse(ctx context.Context, id int) error {
+	// Soft delete
+	query := `UPDATE warehouse_inventory SET deleted_at = NOW(), updated_at = NOW() WHERE warehouse_inventory_id = $1 AND deleted_at IS NULL`
 
-	_, err := r.DB.Exec(context.Background(), query, id)
+	cmdTag, err := r.DB.Exec(ctx, query, id)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal menghapus gudang",
+		r.Logger.Error("Database Query Error: Failed to delete warehouse",
 			zap.Error(err),
-			zap.String("query", query),
+			zap.Int("warehouse_id", id),
 		)
 		return err
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
 	}
 	return nil
 }
 
-// untuk membaca warehouse berdarsaskan id
-func (r *WarehouseRepo) GetWarehouseByID(id int) (*model.Warehouse, error) {
+func (r *WarehouseRepo) GetWarehouseByID(ctx context.Context, id int) (*model.Warehouse, error) {
 	var warehouse model.Warehouse
-	query := `SELECT name, location FROM warehouse_inventory 
-WHERE warehouse_inventory_id = $1;`
-	err := r.DB.QueryRow(context.Background(), query, id).Scan(&warehouse.Name, &warehouse.Location)
+	query := `SELECT warehouse_inventory_id, name, location 
+		FROM warehouse_inventory 
+		WHERE warehouse_inventory_id = $1 AND deleted_at IS NULL;`
+
+	err := r.DB.QueryRow(ctx, query, id).Scan(&warehouse.ID, &warehouse.Name, &warehouse.Location)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal mendapatkan rak berdarsaskan id",
-			zap.Error(err),
-			zap.String("query", query),
-		)
 		return nil, err
 	}
 	return &warehouse, nil

@@ -2,79 +2,140 @@ package router
 
 import (
 	"app-inventory/handler"
-	mCostume "app-inventory/middleware"
+	"app-inventory/middleware"
 	"app-inventory/service"
+	"app-inventory/utils"
+	"net/http"
+	"time"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
-func NewRouter(handler handler.Handler, service service.Service, log *zap.Logger) *chi.Mux {
-	r := chi.NewRouter()
+// NewRouter initializes Gin engine with enterprise middleware and routes
+func NewRouter(h handler.Handler, s service.Service, jwtConfig utils.JWTConfig, log *zap.Logger, debug bool) *gin.Engine {
+	if !debug {
+		gin.SetMode(gin.ReleaseMode)
+	}
 
-	r.Mount("/api/v1", Apiv1(handler, service, log))
+	r := gin.New()
+
+	// Global Middlewares
+	r.Use(gin.Recovery()) // Protects against panics and 500 crashes
+	r.Use(middleware.Logging(log))
+	r.Use(corsMiddleware())
+
+	// Health Check Endpoint
+	r.GET("/health", func(c *gin.Context) {
+		utils.ResponseSuccess(c, http.StatusOK, "System is healthy", gin.H{
+			"status": "up",
+			"time":   time.Now().Format(time.RFC3339),
+		})
+	})
+
+	// API v1 Routing
+	api := r.Group("/api/v1")
+	RegisterAPIV1Routes(api, h, s, jwtConfig, log)
 
 	return r
 }
 
-func Apiv1(handler handler.Handler, service service.Service, log *zap.Logger) *chi.Mux {
-	r := chi.NewRouter()
-	// middleware
-	mw := mCostume.NewMiddlewareCustome(service, log)
-	r.Use(mCostume.Logging(log))
-	//authentication
-	r.Post("/login", handler.Auth.Login)
-	r.Post("/logout", handler.Auth.Logout)
+func RegisterAPIV1Routes(rg *gin.RouterGroup, h handler.Handler, s service.Service, jwtConfig utils.JWTConfig, log *zap.Logger) {
+	mw := middleware.NewCustomMiddleware(s, jwtConfig, log)
 
-	r.Route("/user", func(r chi.Router) {
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("user:view")).Get("/", handler.User.ListUser)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("user:view")).Get("/{id}", handler.User.UserById)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("user:manage")).Post("/", handler.User.CreateUser)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("user:manage")).Patch("/{id}", handler.User.UpdateUser)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("user:manage")).Delete("/{id}", handler.User.DeleteUser)
-	})
-	r.Route("/inventory", func(r chi.Router) {
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("inventory:view")).Get("/", handler.Inventory.ListInventory)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("inventory:view")).Get("/{id}", handler.Inventory.GetInventoryById)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("inventory:create")).Post("/", handler.Inventory.CreateInventory)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("inventory:edit")).Patch("/{id}", handler.Inventory.UpdateInventory)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("inventory:delete")).Delete("/{id}", handler.Inventory.DeleteInventory)
+	// Public Authentication Routes
+	rg.POST("/login", h.Auth.Login)
+	rg.POST("/logout", h.Auth.Logout)
 
-	})
-	r.Route("/category", func(r chi.Router) {
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("category:view")).Get("/", handler.Category.ListCategory)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("category:view")).Get("/{id}", handler.Category.GetCategoryById)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("category:manage")).Post("/", handler.Category.CreateCategory)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("category:manage")).Patch("/{id}", handler.Category.UpdateCategory)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("category:manage")).Delete("/{id}", handler.Category.DeleteCategory)
+	// Protected Routes Group (Protected by JWT Authentication)
+	protected := rg.Group("")
+	protected.Use(mw.JWTAuth())
+	{
+		// User Management
+		user := protected.Group("/user")
+		{
+			user.GET("", mw.RequirePermission("user:view"), h.User.ListUser)
+			user.GET("/:id", mw.RequirePermission("user:view"), h.User.UserById)
+			user.POST("", mw.RequirePermission("user:manage"), h.User.CreateUser)
+			user.PATCH("/:id", mw.RequirePermission("user:manage"), h.User.UpdateUser)
+			user.PUT("/:id", mw.RequirePermission("user:manage"), h.User.UpdateUser)
+			user.DELETE("/:id", mw.RequirePermission("user:manage"), h.User.DeleteUser)
+		}
 
-	})
-	r.Route("/rack", func(r chi.Router) {
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("rack:view")).Get("/", handler.Rack.ListRack)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("rack:view")).Get("/{id}", handler.Rack.GetRackById)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("rack:manage")).Post("/", handler.Rack.CreateRack)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("rack:manage")).Patch("/{id}", handler.Rack.UpdateRack)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("rack:manage")).Delete("/{id}", handler.Rack.DeleteRack)
+		// Inventory Management
+		inventory := protected.Group("/inventory")
+		{
+			inventory.GET("", mw.RequirePermission("inventory:view"), h.Inventory.ListInventory)
+			inventory.GET("/:id", mw.RequirePermission("inventory:view"), h.Inventory.GetInventoryById)
+			inventory.POST("", mw.RequirePermission("inventory:create"), h.Inventory.CreateInventory)
+			inventory.PATCH("/:id", mw.RequirePermission("inventory:edit"), h.Inventory.UpdateInventory)
+			inventory.PUT("/:id", mw.RequirePermission("inventory:edit"), h.Inventory.UpdateInventory)
+			inventory.DELETE("/:id", mw.RequirePermission("inventory:delete"), h.Inventory.DeleteInventory)
+		}
 
-	})
-	r.Route("/warehouse", func(r chi.Router) {
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("warehouse:view")).Get("/", handler.Warehouse.ListWarehouse)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("warehouse:view")).Get("/{id}", handler.Warehouse.GetWarehouseById)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("warehouse:manage")).Post("/", handler.Warehouse.CreateWarehouse)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("warehouse:manage")).Patch("/{id}", handler.Warehouse.UpdateWarehouse)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("warehouse:manage")).Delete("/{id}", handler.Warehouse.DeleteWarehouse)
+		// Category Management
+		category := protected.Group("/category")
+		{
+			category.GET("", mw.RequirePermission("category:view"), h.Category.ListCategory)
+			category.GET("/:id", mw.RequirePermission("category:view"), h.Category.GetCategoryById)
+			category.POST("", mw.RequirePermission("category:manage"), h.Category.CreateCategory)
+			category.PATCH("/:id", mw.RequirePermission("category:manage"), h.Category.UpdateCategory)
+			category.PUT("/:id", mw.RequirePermission("category:manage"), h.Category.UpdateCategory)
+			category.DELETE("/:id", mw.RequirePermission("category:manage"), h.Category.DeleteCategory)
+		}
 
-	})
-	r.Route("/transaction", func(r chi.Router) {
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("transaction:manage")).Get("/", handler.Transaction.ListTransaction)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("transaction:manage")).Get("/{id}", handler.Transaction.GetTransactionById)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("transaction:manage")).Post("/", handler.Transaction.CreateTransaction)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("transaction:manage")).Put("/{id}", handler.Transaction.UpdateTransaction)
-		r.With(mw.ValidAndExtendSession(), mw.RequirePermission("transaction:manage")).Delete("/{id}", handler.Transaction.DeleteTransaction)
+		// Storage Rack Management
+		rack := protected.Group("/rack")
+		{
+			rack.GET("", mw.RequirePermission("rack:view"), h.Rack.ListRack)
+			rack.GET("/:id", mw.RequirePermission("rack:view"), h.Rack.GetRackById)
+			rack.POST("", mw.RequirePermission("rack:manage"), h.Rack.CreateRack)
+			rack.PATCH("/:id", mw.RequirePermission("rack:manage"), h.Rack.UpdateRack)
+			rack.PUT("/:id", mw.RequirePermission("rack:manage"), h.Rack.UpdateRack)
+			rack.DELETE("/:id", mw.RequirePermission("rack:manage"), h.Rack.DeleteRack)
+		}
 
-	})
-	r.With(mw.ValidAndExtendSession(), mw.RequirePermission("report:view")).Get("/report", handler.Report.Report)
-	r.With(mw.ValidAndExtendSession(), mw.RequirePermission("stock:view")).Get("/stock", handler.Inventory.CheckStock)
+		// Warehouse Management
+		warehouse := protected.Group("/warehouse")
+		{
+			warehouse.GET("", mw.RequirePermission("warehouse:view"), h.Warehouse.ListWarehouse)
+			warehouse.GET("/:id", mw.RequirePermission("warehouse:view"), h.Warehouse.GetWarehouseById)
+			warehouse.POST("", mw.RequirePermission("warehouse:manage"), h.Warehouse.CreateWarehouse)
+			warehouse.PATCH("/:id", mw.RequirePermission("warehouse:manage"), h.Warehouse.UpdateWarehouse)
+			warehouse.PUT("/:id", mw.RequirePermission("warehouse:manage"), h.Warehouse.UpdateWarehouse)
+			warehouse.DELETE("/:id", mw.RequirePermission("warehouse:manage"), h.Warehouse.DeleteWarehouse)
+		}
 
-	return r
+		// Sales Transactions
+		transaction := protected.Group("/transaction")
+		{
+			transaction.GET("", mw.RequirePermission("transaction:manage"), h.Transaction.ListTransaction)
+			transaction.GET("/:id", mw.RequirePermission("transaction:manage"), h.Transaction.GetTransactionById)
+			transaction.POST("", mw.RequirePermission("transaction:manage"), h.Transaction.CreateTransaction)
+			transaction.PATCH("/:id", mw.RequirePermission("transaction:manage"), h.Transaction.UpdateTransaction)
+			transaction.PUT("/:id", mw.RequirePermission("transaction:manage"), h.Transaction.UpdateTransaction)
+			transaction.DELETE("/:id", mw.RequirePermission("transaction:manage"), h.Transaction.DeleteTransaction)
+		}
+
+		// Reporting & Stock Alert
+		protected.GET("/report", mw.RequirePermission("report:view"), h.Report.Report)
+		protected.GET("/stock", mw.RequirePermission("stock:view"), h.Inventory.CheckStock)
+	}
+}
+
+// corsMiddleware configures Cross-Origin Resource Sharing for Gin
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusOK)
+			return
+		}
+
+		c.Next()
+	}
 }

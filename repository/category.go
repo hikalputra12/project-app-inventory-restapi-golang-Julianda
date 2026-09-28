@@ -6,6 +6,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -13,33 +14,31 @@ type CategoryRepo struct {
 	DB     database.PgxIface
 	Logger *zap.Logger
 }
+
 type CategoryRepoInterface interface {
-	GetAllCategory(page, limit int) ([]model.Category, int, error)
-	CreateCategory(category *model.Category) error
-	UpdateCategory(id int, category *model.Category) error
-	DeleteCategory(id int) error
-	GetCategoryByID(id int) (*model.Category, error)
+	GetAllCategory(ctx context.Context, page, limit int) ([]model.Category, int, error)
+	CreateCategory(ctx context.Context, category *model.Category) error
+	UpdateCategory(ctx context.Context, id int, category *model.Category) error
+	DeleteCategory(ctx context.Context, id int) error
+	GetCategoryByID(ctx context.Context, id int) (*model.Category, error)
 }
 
-// constructor
-func NewCategoryRepo(db database.PgxIface,
-	log *zap.Logger) CategoryRepoInterface {
+func NewCategoryRepo(db database.PgxIface, log *zap.Logger) CategoryRepoInterface {
 	return &CategoryRepo{
 		DB:     db,
 		Logger: log,
 	}
 }
 
-func (r *CategoryRepo) CreateCategory(category *model.Category) error {
-	query := `INSERT INTO category_inventory ("name", "rack_inventory_id", created_at, updated_at)
-VALUES ($1, $2, $3, $4) RETURNING category_inventory_id`
+func (r *CategoryRepo) CreateCategory(ctx context.Context, category *model.Category) error {
+	query := `INSERT INTO category_inventory (name, rack_inventory_id, created_at, updated_at)
+			VALUES ($1, $2, $3, $4) RETURNING category_inventory_id`
 
 	now := time.Now()
-	err := r.DB.QueryRow(context.Background(), query, category.Name, category.Rack_inventory_id, now, now).Scan(&category.ID)
+	err := r.DB.QueryRow(ctx, query, category.Name, category.Rack_inventory_id, now, now).Scan(&category.ID)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal Insert Category",
+		r.Logger.Error("Database Query Error: Failed to insert category",
 			zap.Error(err),
-			zap.String("query", query),
 		)
 		return err
 	}
@@ -48,87 +47,110 @@ VALUES ($1, $2, $3, $4) RETURNING category_inventory_id`
 	return nil
 }
 
-// untuk membaca Category yang ada
-func (r *CategoryRepo) GetAllCategory(page, limit int) ([]model.Category, int, error) {
-
-	//menghitung offset
+func (r *CategoryRepo) GetAllCategory(ctx context.Context, page, limit int) ([]model.Category, int, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
 	offset := (page - 1) * limit
-	// get total data for pagination
+
 	var total int
 	countQuery := `SELECT COUNT(*) FROM category_inventory WHERE deleted_at IS NULL`
-	err := r.DB.QueryRow(context.Background(), countQuery).Scan(&total)
+	err := r.DB.QueryRow(ctx, countQuery).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
-	query := `SELECT name,rack_inventory_id FROM category_inventory
-	ORDER BY category_inventory_id ASC
-LIMIT $1 OFFSET $2;`
-	rows, err := r.DB.Query(context.Background(), query, limit, offset)
+
+	query := `SELECT 
+		c.category_inventory_id,
+		c.name,
+		c.rack_inventory_id,
+		COALESCE(r.name, '') AS rack_name
+	FROM category_inventory c
+	LEFT JOIN rack_inventory r ON c.rack_inventory_id = r.rack_inventory_id
+	WHERE c.deleted_at IS NULL
+	ORDER BY c.category_inventory_id ASC
+	LIMIT $1 OFFSET $2;`
+
+	rows, err := r.DB.Query(ctx, query, limit, offset)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal select all Category",
+		r.Logger.Error("Database Query Error: Failed to select all categories",
 			zap.Error(err),
-			zap.String("query", query),
 		)
 		return nil, 0, err
 	}
 	defer rows.Close()
-	var Categories []model.Category
+
+	var categories []model.Category
 	for rows.Next() {
 		var t model.Category
-		err := rows.Scan(&t.Name, &t.Rack_inventory_id)
+		err := rows.Scan(&t.ID, &t.Name, &t.Rack_inventory_id, &t.RackInventory)
 		if err != nil {
 			return nil, 0, err
 		}
-		Categories = append(Categories, t)
+		categories = append(categories, t)
 	}
-	return Categories, total, nil
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return categories, total, nil
 }
 
-// update category
-func (r *CategoryRepo) UpdateCategory(id int, category *model.Category) error {
+func (r *CategoryRepo) UpdateCategory(ctx context.Context, id int, category *model.Category) error {
 	query := `UPDATE category_inventory
-			SET name=$1,rack_inventory_id=$2,updated_at=$3 WHERE category_inventory_id=$4`
+			SET name = $1, rack_inventory_id = $2, updated_at = $3 
+			WHERE category_inventory_id = $4 AND deleted_at IS NULL`
+
 	now := time.Now()
-	_, err := r.DB.Exec(context.Background(), query, category.Name, category.Rack_inventory_id, now, id)
+	cmdTag, err := r.DB.Exec(ctx, query, category.Name, category.Rack_inventory_id, now, id)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal update Category",
+		r.Logger.Error("Database Query Error: Failed to update category",
 			zap.Error(err),
-			zap.String("query", query),
+			zap.Int("category_id", id),
 		)
 		return err
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
 	}
 	category.UpdatedAt = now
 	return nil
 }
 
-// delete category
-func (r *CategoryRepo) DeleteCategory(id int) error {
-	query := `DELETE FROM category_inventory
-			 where category_inventory_id = $1`
+func (r *CategoryRepo) DeleteCategory(ctx context.Context, id int) error {
+	// Soft delete
+	query := `UPDATE category_inventory SET deleted_at = NOW(), updated_at = NOW() WHERE category_inventory_id = $1 AND deleted_at IS NULL`
 
-	_, err := r.DB.Exec(context.Background(), query, id)
+	cmdTag, err := r.DB.Exec(ctx, query, id)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal delete Category",
+		r.Logger.Error("Database Query Error: Failed to soft delete category",
 			zap.Error(err),
-			zap.String("query", query),
+			zap.Int("category_id", id),
 		)
 		return err
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
 	}
 	return nil
 }
 
-// untuk membaca category berdarsaskan id
-func (r *CategoryRepo) GetCategoryByID(id int) (*model.Category, error) {
+func (r *CategoryRepo) GetCategoryByID(ctx context.Context, id int) (*model.Category, error) {
 	var category model.Category
-	query := `SELECT c.name,c.rack_inventory_id,r.name as rack_inventory FROM category_inventory c
-	JOIN rack_inventory r ON c.rack_inventory_id = r.rack_inventory_id
-WHERE category_inventory_id = $1;`
-	err := r.DB.QueryRow(context.Background(), query, id).Scan(&category.Name, &category.Rack_inventory_id, &category.RackInventory)
+	query := `SELECT 
+		c.category_inventory_id,
+		c.name,
+		c.rack_inventory_id,
+		COALESCE(r.name, '') as rack_inventory 
+	FROM category_inventory c
+	LEFT JOIN rack_inventory r ON c.rack_inventory_id = r.rack_inventory_id
+	WHERE c.category_inventory_id = $1 AND c.deleted_at IS NULL;`
+
+	err := r.DB.QueryRow(ctx, query, id).Scan(&category.ID, &category.Name, &category.Rack_inventory_id, &category.RackInventory)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal mendapatkan category berdarsaskan id",
-			zap.Error(err),
-			zap.String("query", query),
-		)
 		return nil, err
 	}
 	return &category, nil

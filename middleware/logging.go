@@ -1,28 +1,37 @@
 package middleware
 
 import (
-	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
-// Logging adalah middleware untuk mencatat setiap request HTTP
-func Logging(log *zap.Logger) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			start := time.Now()
+// Logging records HTTP requests using Zap logger in Gin
+func Logging(log *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		raw := c.Request.URL.RawQuery
 
-			// Jalankan request
-			next.ServeHTTP(w, r)
+		// Process request
+		c.Next()
 
-			// Catat log setelah request selesai
-			duration := time.Since(start)
-			log.Info("HTTP Request",
-				zap.String("method", r.Method),
-				zap.String("path", r.URL.Path),
-				zap.Duration("duration", duration),
-			)
-		})
+		latency := time.Since(start)
+		clientIP := c.ClientIP()
+		method := c.Request.Method
+		statusCode := c.Writer.Status()
+
+		if raw != "" {
+			path = path + "?" + raw
+		}
+
+		log.Info("HTTP Request",
+			zap.Int("status", statusCode),
+			zap.String("method", method),
+			zap.String("path", path),
+			zap.String("ip", clientIP),
+			zap.Duration("latency", latency),
+		)
 	}
 }

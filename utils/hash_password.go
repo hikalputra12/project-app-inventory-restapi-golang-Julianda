@@ -4,15 +4,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-//pembuatan hash password ketika user di buat amaka akan membuat hash password secara otomatis agar menjaga keamanan akun
-
-func HashPassword(password string) string {
-	//pembuatan password hash 14 karakter
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(hashedPassword)
+// HashPassword hashes password using bcrypt with recommended default cost
+func HashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
 }
 
-func CompareHashAndPassword(hashedPassword, password []byte) bool {
-	err := bcrypt.CompareHashAndPassword(hashedPassword, password)
+// CompareHashAndPassword verifies whether plain password matches the hashed password
+func CompareHashAndPassword(hashedPassword, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	return err == nil
 }

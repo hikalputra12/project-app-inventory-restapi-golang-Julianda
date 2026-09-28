@@ -5,6 +5,7 @@ import (
 	"app-inventory/model"
 	"app-inventory/repository"
 	"app-inventory/utils"
+	"context"
 
 	"go.uber.org/zap"
 )
@@ -13,15 +14,15 @@ type userService struct {
 	repo   repository.UserRepoInterface
 	logger *zap.Logger
 }
+
 type UserServiceInterface interface {
-	GetAllUser(page, limit int) ([]model.User, *dto.Pagination, error)
-	CreateUser(*model.User) error
-	UpdateUser(id int, user *model.User) error
-	DeleteUser(id int) error
-	GetUserById(id int) (*model.User, error)
+	GetAllUser(ctx context.Context, page, limit int) ([]model.User, *dto.Pagination, error)
+	CreateUser(ctx context.Context, user *model.User) error
+	UpdateUser(ctx context.Context, id int, user *model.User) error
+	DeleteUser(ctx context.Context, id int) error
+	GetUserById(ctx context.Context, id int) (*model.User, error)
 }
 
-// constructor
 func NewUserService(repo repository.UserRepoInterface, log *zap.Logger) UserServiceInterface {
 	return &userService{
 		repo:   repo,
@@ -29,84 +30,80 @@ func NewUserService(repo repository.UserRepoInterface, log *zap.Logger) UserServ
 	}
 }
 
-func (s *userService) GetAllUser(page, limit int) ([]model.User, *dto.Pagination, error) {
-	users, total, err := s.repo.GetAllUser(page, limit)
+func (s *userService) GetAllUser(ctx context.Context, page, limit int) ([]model.User, *dto.Pagination, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	users, total, err := s.repo.GetAllUser(ctx, page, limit)
 	if err != nil {
-		s.logger.Error("failed to connect service to read list user", zap.Error(err))
+		s.logger.Error("Failed to fetch user list from repository", zap.Error(err))
 		return nil, nil, err
 	}
 	pagination := dto.Pagination{
 		CurrentPage: page,
 		Limit:       limit,
 		TotalPages:  utils.TotalPage(limit, int64(total)),
+		TotalItems:  int64(total),
 	}
 	return users, &pagination, nil
 }
 
-// get user by id
-func (s *userService) GetUserById(id int) (*model.User, error) {
-	users, err := s.repo.GetUserByID(id)
+func (s *userService) GetUserById(ctx context.Context, id int) (*model.User, error) {
+	user, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
-		s.logger.Error("failed to connect service to read user by id", zap.Error(err))
+		s.logger.Error("Failed to fetch user by id from repository", zap.Error(err), zap.Int("user_id", id))
 		return nil, err
 	}
-
-	return users, nil
+	return user, nil
 }
 
-func (s *userService) CreateUser(user *model.User) error {
-	passwordHash := utils.HashPassword(user.Password)
+func (s *userService) CreateUser(ctx context.Context, user *model.User) error {
+	passwordHash, err := utils.HashPassword(user.Password)
+	if err != nil {
+		s.logger.Error("Failed to hash password", zap.Error(err))
+		return err
+	}
 
-	NewUser := &model.User{
+	newUser := &model.User{
 		Name:     user.Name,
 		Password: passwordHash,
 		Email:    user.Email,
 		Role_id:  user.Role_id,
 	}
-	err := s.repo.CreateUser(NewUser)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.repo.CreateUser(ctx, newUser)
 }
 
-func (s *userService) UpdateUser(id int, user *model.User) error {
-	passwordHash := utils.HashPassword(user.Password)
-	getUser, err := s.repo.GetUserByID(id)
+func (s *userService) UpdateUser(ctx context.Context, id int, user *model.User) error {
+	existingUser, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	if user.Name != "" {
-		getUser.Name = user.Name
+		existingUser.Name = user.Name
 	}
 	if user.Email != "" {
-		getUser.Email = user.Email
+		existingUser.Email = user.Email
 	}
+	// Fixed: Only update password if a new password was provided!
 	if user.Password != "" {
-		getUser.Password = passwordHash
+		newHash, err := utils.HashPassword(user.Password)
+		if err != nil {
+			return err
+		}
+		existingUser.Password = newHash
 	}
 	if user.Role_id != 0 {
-		getUser.Role_id = user.Role_id
+		existingUser.Role_id = user.Role_id
 	}
 
-	NewUserUpdate := &model.User{
-		Name:     getUser.Name,
-		Password: passwordHash,
-		Email:    getUser.Email,
-		Role_id:  getUser.Role_id,
-	}
-	err = s.repo.UpdateUser(id, NewUserUpdate)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.repo.UpdateUser(ctx, id, existingUser)
 }
 
-func (s *userService) DeleteUser(id int) error {
-	err := s.repo.DeleteUser(id)
-	if err != nil {
-		return err
-	}
-	return nil
+func (s *userService) DeleteUser(ctx context.Context, id int) error {
+	return s.repo.DeleteUser(ctx, id)
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
@@ -13,122 +14,143 @@ type RackRepo struct {
 	DB     database.PgxIface
 	Logger *zap.Logger
 }
+
 type RackRepoInterface interface {
-	GetAllRack(page, limit int) ([]model.Rack, int, error)
-	CreateRack(Rack *model.Rack) error
-	UpdateRack(id int, Rack *model.Rack) error
-	DeleteRack(id int) error
-	GetRackByID(id int) (*model.Rack, error)
+	GetAllRack(ctx context.Context, page, limit int) ([]model.Rack, int, error)
+	CreateRack(ctx context.Context, rack *model.Rack) error
+	UpdateRack(ctx context.Context, id int, rack *model.Rack) error
+	DeleteRack(ctx context.Context, id int) error
+	GetRackByID(ctx context.Context, id int) (*model.Rack, error)
 }
 
-// constructor
-func NewRackRepo(db database.PgxIface,
-	log *zap.Logger) RackRepoInterface {
+func NewRackRepo(db database.PgxIface, log *zap.Logger) RackRepoInterface {
 	return &RackRepo{
 		DB:     db,
 		Logger: log,
 	}
 }
 
-func (r *RackRepo) CreateRack(Rack *model.Rack) error {
-	query := `INSERT INTO Rack_inventory ("name", "warehouse_inventory_id", created_at, updated_at)
-VALUES ($1, $2, $3, $4) RETURNING rack_inventory_id`
+func (r *RackRepo) CreateRack(ctx context.Context, rack *model.Rack) error {
+	query := `INSERT INTO rack_inventory (name, warehouse_inventory_id, created_at, updated_at)
+			VALUES ($1, $2, $3, $4) RETURNING rack_inventory_id`
 
 	now := time.Now()
-	err := r.DB.QueryRow(context.Background(), query, Rack.Name, Rack.WarehouseInventoryId, now, now).Scan(&Rack.ID)
+	err := r.DB.QueryRow(ctx, query, rack.Name, rack.WarehouseInventoryId, now, now).Scan(&rack.ID)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal create rak",
+		r.Logger.Error("Database Query Error: Failed to create rack",
 			zap.Error(err),
-			zap.String("query", query),
 		)
 		return err
 	}
-	Rack.CreatedAt = now
-	Rack.UpdatedAt = now
+	rack.CreatedAt = now
+	rack.UpdatedAt = now
 	return nil
 }
 
-// untuk membaca Rack yang ada
-func (r *RackRepo) GetAllRack(page, limit int) ([]model.Rack, int, error) {
-
-	//menghitung offset
+func (r *RackRepo) GetAllRack(ctx context.Context, page, limit int) ([]model.Rack, int, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
 	offset := (page - 1) * limit
-	// get total data for pagination
+
 	var total int
 	countQuery := `SELECT COUNT(*) FROM rack_inventory WHERE deleted_at IS NULL`
-	err := r.DB.QueryRow(context.Background(), countQuery).Scan(&total)
+	err := r.DB.QueryRow(ctx, countQuery).Scan(&total)
 	if err != nil {
 		return nil, 0, err
 	}
-	query := `SELECT name,warehouse_inventory_id FROM rack_inventory
-	ORDER BY rack_inventory_id ASC
-LIMIT $1 OFFSET $2;`
-	rows, err := r.DB.Query(context.Background(), query, limit, offset)
+
+	query := `SELECT 
+		r.rack_inventory_id,
+		r.name,
+		r.warehouse_inventory_id,
+		COALESCE(w.name, '') AS warehouse_name
+	FROM rack_inventory r
+	LEFT JOIN warehouse_inventory w ON r.warehouse_inventory_id = w.warehouse_inventory_id
+	WHERE r.deleted_at IS NULL
+	ORDER BY r.rack_inventory_id ASC
+	LIMIT $1 OFFSET $2;`
+
+	rows, err := r.DB.Query(ctx, query, limit, offset)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal mendapatkan semua rak",
+		r.Logger.Error("Database Query Error: Failed to get all racks",
 			zap.Error(err),
-			zap.String("query", query),
 		)
 		return nil, 0, err
 	}
 	defer rows.Close()
-	var rack []model.Rack
+
+	var racks []model.Rack
 	for rows.Next() {
 		var t model.Rack
-		err := rows.Scan(&t.Name, &t.WarehouseInventoryId)
+		err := rows.Scan(&t.ID, &t.Name, &t.WarehouseInventoryId, &t.WarehouseInventory)
 		if err != nil {
 			return nil, 0, err
 		}
-		rack = append(rack, t)
+		racks = append(racks, t)
 	}
-	return rack, total, nil
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return racks, total, nil
 }
 
-// update Rack
-func (r *RackRepo) UpdateRack(id int, Rack *model.Rack) error {
+func (r *RackRepo) UpdateRack(ctx context.Context, id int, rack *model.Rack) error {
 	query := `UPDATE rack_inventory
-			SET name=$1,warehouse_inventory_id=$2,updated_at=$3 WHERE rack_inventory_id=$4`
+			SET name = $1, warehouse_inventory_id = $2, updated_at = $3 
+			WHERE rack_inventory_id = $4 AND deleted_at IS NULL`
+
 	now := time.Now()
-	_, err := r.DB.Exec(context.Background(), query, Rack.Name, Rack.WarehouseInventoryId, now, id)
+	cmdTag, err := r.DB.Exec(ctx, query, rack.Name, rack.WarehouseInventoryId, now, id)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal update rak",
+		r.Logger.Error("Database Query Error: Failed to update rack",
 			zap.Error(err),
-			zap.String("query", query),
+			zap.Int("rack_id", id),
 		)
 		return err
 	}
-	Rack.UpdatedAt = now
+	if cmdTag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	rack.UpdatedAt = now
 	return nil
 }
 
-// delete Rack
-func (r *RackRepo) DeleteRack(id int) error {
-	query := `DELETE FROM rack_inventory
-			 where rack_inventory_id = $1`
+func (r *RackRepo) DeleteRack(ctx context.Context, id int) error {
+	// Soft delete
+	query := `UPDATE rack_inventory SET deleted_at = NOW(), updated_at = NOW() WHERE rack_inventory_id = $1 AND deleted_at IS NULL`
 
-	_, err := r.DB.Exec(context.Background(), query, id)
+	cmdTag, err := r.DB.Exec(ctx, query, id)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal delete rak",
+		r.Logger.Error("Database Query Error: Failed to delete rack",
 			zap.Error(err),
-			zap.String("query", query),
+			zap.Int("rack_id", id),
 		)
 		return err
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
 	}
 	return nil
 }
 
-// untuk membaca rack berdarsaskan id
-func (r *RackRepo) GetRackByID(id int) (*model.Rack, error) {
+func (r *RackRepo) GetRackByID(ctx context.Context, id int) (*model.Rack, error) {
 	var rack model.Rack
-	query := `SELECT r.name,r.warehouse_inventory_id,w.name as warehouse_inventory FROM rack_inventory r
-JOIN warehouse_inventory w ON r.warehouse_inventory_id = w.warehouse_inventory_id
-WHERE rack_inventory_id = $1;`
-	err := r.DB.QueryRow(context.Background(), query, id).Scan(&rack.Name, &rack.WarehouseInventoryId, &rack.WarehouseInventory)
+	query := `SELECT 
+		r.rack_inventory_id,
+		r.name,
+		r.warehouse_inventory_id,
+		COALESCE(w.name, '') as warehouse_inventory 
+	FROM rack_inventory r
+	LEFT JOIN warehouse_inventory w ON r.warehouse_inventory_id = w.warehouse_inventory_id
+	WHERE r.rack_inventory_id = $1 AND r.deleted_at IS NULL;`
+
+	err := r.DB.QueryRow(ctx, query, id).Scan(&rack.ID, &rack.Name, &rack.WarehouseInventoryId, &rack.WarehouseInventory)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal mendapatkan rak berdarsaskan id",
-			zap.Error(err),
-			zap.String("query", query),
-		)
 		return nil, err
 	}
 	return &rack, nil

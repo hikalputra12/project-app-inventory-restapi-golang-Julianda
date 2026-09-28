@@ -3,20 +3,34 @@ package repository
 import (
 	"app-inventory/database"
 	"context"
+	"fmt"
+	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type PermissionIface interface {
-	Allowed(userID int, code string) (bool, error)
+	Allowed(ctx context.Context, userID int, code string) (bool, error)
 }
 
 type permissionRepo struct {
-	db database.PgxIface
+	db    database.PgxIface
+	redis *redis.Client
 }
 
-func NewPermissionRepository(db database.PgxIface) PermissionIface {
-	return &permissionRepo{db: db}
+func NewPermissionRepository(db database.PgxIface, rdb *redis.Client) PermissionIface {
+	return &permissionRepo{db: db, redis: rdb}
 }
-func (permissionRepository *permissionRepo) Allowed(userID int, code string) (bool, error) {
+
+func (r *permissionRepo) Allowed(ctx context.Context, userID int, code string) (bool, error) {
+	cacheKey := fmt.Sprintf("perm:%d:%s", userID, code)
+
+	if r.redis != nil {
+		val, err := r.redis.Get(ctx, cacheKey).Result()
+		if err == nil {
+			return val == "1", nil
+		}
+	}
 
 	const qAllowed = `
     WITH perm AS (
@@ -39,7 +53,7 @@ func (permissionRepository *permissionRepo) Allowed(userID int, code string) (bo
             FROM users u
             JOIN role_permissions rp ON rp.role_id = u.role_id
             JOIN perm ON perm.id = rp.permission_id
-            WHERE u.user_id = $1  
+            WHERE u.user_id = $1 AND u.deleted_at IS NULL
         ) THEN TRUE
         
         ELSE FALSE
@@ -47,7 +61,18 @@ func (permissionRepository *permissionRepo) Allowed(userID int, code string) (bo
     `
 
 	var allowed bool
-	err := permissionRepository.db.QueryRow(context.Background(), qAllowed, userID, code).Scan(&allowed)
+	err := r.db.QueryRow(ctx, qAllowed, userID, code).Scan(&allowed)
+	if err != nil {
+		return false, err
+	}
 
-	return allowed, err
+	if r.redis != nil {
+		val := "0"
+		if allowed {
+			val = "1"
+		}
+		_ = r.redis.Set(ctx, cacheKey, val, 5*time.Minute).Err()
+	}
+
+	return allowed, nil
 }

@@ -13,88 +13,80 @@ type SessionRepo struct {
 	DB     database.PgxIface
 	Logger *zap.Logger
 }
+
 type SessionRepoInterface interface {
-	CreateSession(session *model.Session) error
-	RevokeSession(session *model.Session) error
-	ExtendSession(session *model.Session) error
-	IsValid(session *model.Session) (bool, error)
-	GetUserIDBySession(session *model.Session) (int, error)
+	CreateSession(ctx context.Context, session *model.Session) error
+	RevokeSession(ctx context.Context, sessionID string) error
+	ExtendSession(ctx context.Context, sessionID string) error
+	IsValid(ctx context.Context, sessionID string) (bool, error)
+	GetUserIDBySession(ctx context.Context, sessionID string) (int, error)
 }
 
-// constructor
-func NewSessionRepo(db database.PgxIface,
-	log *zap.Logger) SessionRepoInterface {
+func NewSessionRepo(db database.PgxIface, log *zap.Logger) SessionRepoInterface {
 	return &SessionRepo{
 		DB:     db,
 		Logger: log,
 	}
 }
 
-func (r *SessionRepo) CreateSession(session *model.Session) error {
-	query := `INSERT INTO sessions ("session_id", "user_id", expired_at, created_at, last_active)
-VALUES ($1, $2, $3, $4, $5)`
+func (r *SessionRepo) CreateSession(ctx context.Context, session *model.Session) error {
+	query := `INSERT INTO sessions (session_id, user_id, expired_at, created_at, last_active)
+		VALUES ($1, $2, $3, $4, $5)`
 
 	now := time.Now()
-	expired := time.Now().Add(24 * time.Hour)
-	_, err := r.DB.Exec(context.Background(), query, session.SessionID, session.UserID, expired, now, now)
+	expired := now.Add(24 * time.Hour)
+	_, err := r.DB.Exec(ctx, query, session.SessionID, session.UserID, expired, now, now)
 	if err != nil {
-		r.Logger.Error("Database Query Error: failed insert session uuid to database",
+		r.Logger.Error("Database Query Error: Failed to insert session",
 			zap.Error(err),
-			zap.String("query", query),
 		)
 		return err
 	}
 	session.ExpiredAt = expired
 	session.CreatedAt = now
+	session.LastActive = now
 	return nil
 }
 
-// untuk pencabutan sesi saat logout
-func (r *SessionRepo) RevokeSession(session *model.Session) error {
-	query := `UPDATE sessions
-			  SET revoked_at=NOW()
-			  WHERE session_id=$1 AND revoked_at is NULL`
-	_, err := r.DB.Exec(context.Background(), query, session.SessionID)
+func (r *SessionRepo) RevokeSession(ctx context.Context, sessionID string) error {
+	query := `UPDATE sessions SET revoked_at = NOW() WHERE session_id = $1 AND revoked_at IS NULL`
+	_, err := r.DB.Exec(ctx, query, sessionID)
 	if err != nil {
-		r.Logger.Error("Database Query Error: failed revoke session on database",
+		r.Logger.Error("Database Query Error: Failed to revoke session",
 			zap.Error(err),
-			zap.String("query", query),
 		)
 		return err
 	}
 	return nil
 }
-func (r *SessionRepo) ExtendSession(session *model.Session) error {
+
+func (r *SessionRepo) ExtendSession(ctx context.Context, sessionID string) error {
 	query := `UPDATE sessions 
-			SET session_id = $1 ,expired_at=$2, last_active=NOW() WHERE session_id=$3 AND revoked_at is NULL `
+			SET expired_at = $1, last_active = NOW() 
+			WHERE session_id = $2 AND revoked_at IS NULL AND expired_at > NOW()`
 	expired := time.Now().Add(24 * time.Hour)
-	session.ExpiredAt = expired
-	_, err := r.DB.Exec(context.Background(), query, session.SessionID, expired, session.SessionID)
+	_, err := r.DB.Exec(ctx, query, expired, sessionID)
 	if err != nil {
-		r.Logger.Error("Database Query Error: failed update session on database",
+		r.Logger.Error("Database Query Error: Failed to extend session",
 			zap.Error(err),
-			zap.String("query", query),
 		)
 		return err
 	}
-
 	return nil
 }
 
-// pengecekan valid atau tidak validnya session
-func (r *SessionRepo) IsValid(session *model.Session) (bool, error) {
+func (r *SessionRepo) IsValid(ctx context.Context, sessionID string) (bool, error) {
 	query := `SELECT EXISTS(
-			  SELECT 1 FROM sessions WHERE session_id=$1 AND revoked_at is NULL AND expired_at > NOW() )`
+			  SELECT 1 FROM sessions WHERE session_id = $1 AND revoked_at IS NULL AND expired_at > NOW())`
 	var valid bool
-	err := r.DB.QueryRow(context.Background(), query, session.SessionID).Scan(&valid)
+	err := r.DB.QueryRow(ctx, query, sessionID).Scan(&valid)
 	return valid, err
 }
 
-func (r *SessionRepo) GetUserIDBySession(session *model.Session) (int, error) {
+func (r *SessionRepo) GetUserIDBySession(ctx context.Context, sessionID string) (int, error) {
 	var userID int
-	query := `SELECT user_id FROM sessions WHERE session_id = $1 AND revoked_at IS NULL`
-
-	err := r.DB.QueryRow(context.Background(), query, session.SessionID).Scan(&userID)
+	query := `SELECT user_id FROM sessions WHERE session_id = $1 AND revoked_at IS NULL AND expired_at > NOW()`
+	err := r.DB.QueryRow(ctx, query, sessionID).Scan(&userID)
 	if err != nil {
 		return 0, err
 	}

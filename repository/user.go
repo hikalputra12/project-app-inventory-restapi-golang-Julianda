@@ -10,44 +10,38 @@ import (
 	"go.uber.org/zap"
 )
 
-//untuk mengelola user
-
-//untuk super admin
-
-// buat struct
 type userRepo struct {
 	DB     database.PgxIface
 	Logger *zap.Logger
 }
+
 type UserRepoInterface interface {
-	GetAllUser(page, limit int) ([]model.User, int, error)
-	CreateUser(*model.User) error
-	UpdateUser(id int, user *model.User) error
-	DeleteUser(id int) error
-	FindByEmail(email string) (*model.User, error)
-	GetUserByID(id int) (*model.User, error)
+	GetAllUser(ctx context.Context, page, limit int) ([]model.User, int, error)
+	CreateUser(ctx context.Context, user *model.User) error
+	UpdateUser(ctx context.Context, id int, user *model.User) error
+	DeleteUser(ctx context.Context, id int) error
+	FindByEmail(ctx context.Context, email string) (*model.User, error)
+	GetUserByID(ctx context.Context, id int) (*model.User, error)
 }
 
-// constructor
-func NewUserRepo(db database.PgxIface,
-	log *zap.Logger) UserRepoInterface {
+func NewUserRepo(db database.PgxIface, log *zap.Logger) UserRepoInterface {
 	return &userRepo{
 		DB:     db,
 		Logger: log,
 	}
 }
 
-// update user
-func (r *userRepo) UpdateUser(id int, user *model.User) error {
+func (r *userRepo) UpdateUser(ctx context.Context, id int, user *model.User) error {
 	query := `UPDATE users
-			SET name=$1,email=$2,password_hash=$3,role_id=$4,updated_at=$5 where user_id = $6`
+			SET name = $1, email = $2, password_hash = $3, role_id = $4, updated_at = $5 
+			WHERE user_id = $6 AND deleted_at IS NULL`
 
 	now := time.Now()
-	_, err := r.DB.Exec(context.Background(), query, user.Name, user.Email, user.Password, user.Role_id, now, id)
+	_, err := r.DB.Exec(ctx, query, user.Name, user.Email, user.Password, user.Role_id, now, id)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal merubah data user",
+		r.Logger.Error("Database Query Error: Failed to update user",
 			zap.Error(err),
-			zap.String("query", query),
+			zap.Int("user_id", id),
 		)
 		return err
 	}
@@ -55,34 +49,33 @@ func (r *userRepo) UpdateUser(id int, user *model.User) error {
 	return nil
 }
 
-// delete user
-func (r *userRepo) DeleteUser(id int) error {
-	query := `DELETE FROM users
-			 where user_id = $1`
+func (r *userRepo) DeleteUser(ctx context.Context, id int) error {
+	// Soft delete
+	query := `UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE user_id = $1 AND deleted_at IS NULL`
 
-	_, err := r.DB.Exec(context.Background(), query, id)
+	cmdTag, err := r.DB.Exec(ctx, query, id)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal menghapus user",
+		r.Logger.Error("Database Query Error: Failed to soft delete user",
 			zap.Error(err),
-			zap.String("query", query),
+			zap.Int("user_id", id),
 		)
 		return err
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return pgx.ErrNoRows
 	}
 	return nil
 }
 
-// create user
-func (r *userRepo) CreateUser(user *model.User) error {
-	query := `INSERT INTO "users" ("name", "email", "password_hash", "role_id", created_at, updated_at)
-VALUES
-($1, $2, $3, $4,$5,$6) RETURNING user_id`
+func (r *userRepo) CreateUser(ctx context.Context, user *model.User) error {
+	query := `INSERT INTO users (name, email, password_hash, role_id, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id`
 
 	now := time.Now()
-	err := r.DB.QueryRow(context.Background(), query, user.Name, user.Email, user.Password, user.Role_id, now, now).Scan(&user.ID)
+	err := r.DB.QueryRow(ctx, query, user.Name, user.Email, user.Password, user.Role_id, now, now).Scan(&user.ID)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal membuat user baru",
+		r.Logger.Error("Database Query Error: Failed to create user",
 			zap.Error(err),
-			zap.String("query", query),
 		)
 		return err
 	}
@@ -91,92 +84,102 @@ VALUES
 	return nil
 }
 
-// untuk membaca user yang ada
-func (r *userRepo) GetAllUser(page, limit int) ([]model.User, int, error) {
-
-	//menghitung offset
+func (r *userRepo) GetAllUser(ctx context.Context, page, limit int) ([]model.User, int, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
 	offset := (page - 1) * limit
-	// get total data for pagination
+
 	var total int
 	countQuery := `SELECT COUNT(*) FROM users WHERE deleted_at IS NULL`
-	err := r.DB.QueryRow(context.Background(), countQuery).Scan(&total)
+	err := r.DB.QueryRow(ctx, countQuery).Scan(&total)
 	if err != nil {
-		r.Logger.Error("error query findall repo ", zap.Error(err))
+		r.Logger.Error("Failed to count users", zap.Error(err))
 		return nil, 0, err
 	}
+
 	query := `SELECT 
-	users.user_id,
-    users.name, 
-    users.email, 
-    roles.name AS role_name
-FROM users
-JOIN roles ON users.role_id = roles.id
-WHERE users.deleted_at IS NULL
-ORDER BY users.user_id ASC
-LIMIT $1 OFFSET $2;`
-	rows, err := r.DB.Query(context.Background(), query, limit, offset)
+		users.user_id,
+		users.name, 
+		users.email, 
+		roles.name AS role_name,
+		users.role_id
+	FROM users
+	JOIN roles ON users.role_id = roles.id
+	WHERE users.deleted_at IS NULL
+	ORDER BY users.user_id ASC
+	LIMIT $1 OFFSET $2;`
+
+	rows, err := r.DB.Query(ctx, query, limit, offset)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal mendapatkan list user",
+		r.Logger.Error("Database Query Error: Failed to get user list",
 			zap.Error(err),
-			zap.String("query", query),
 		)
 		return nil, 0, err
 	}
 	defer rows.Close()
+
 	var users []model.User
 	for rows.Next() {
 		var t model.User
-		err := rows.Scan(&t.ID, &t.Name, &t.Email, &t.Role)
+		err := rows.Scan(&t.ID, &t.Name, &t.Email, &t.Role, &t.Role_id)
 		if err != nil {
 			return nil, 0, err
 		}
 		users = append(users, t)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
 	return users, total, nil
 }
 
-func (r *userRepo) FindByEmail(email string) (*model.User, error) {
+func (r *userRepo) FindByEmail(ctx context.Context, email string) (*model.User, error) {
 	query := `
-		SELECT u.user_id, u.created_at, u.updated_at, u.deleted_at, u.name, u.email, u.password_hash, r.name as role
+		SELECT u.user_id, u.created_at, u.updated_at, u.deleted_at, u.name, u.email, u.password_hash, r.name as role, u.role_id
         FROM users u
         JOIN roles r ON u.role_id = r.id
         WHERE u.email = $1 AND u.deleted_at IS NULL
 	`
 	var user model.User
-	err := r.DB.QueryRow(context.Background(), query, email).Scan(
+	err := r.DB.QueryRow(ctx, query, email).Scan(
 		&user.ID, &user.CreatedAt, &user.UpdatedAt, &user.DeletedAt,
-		&user.Name, &user.Email, &user.Password, &user.Role,
+		&user.Name, &user.Email, &user.Password, &user.Role, &user.Role_id,
 	)
 
-	if err == pgx.ErrNoRows {
-		r.Logger.Error("Database Query Error: Gagal menemukan email",
-			zap.Error(err),
-			zap.String("query", query),
-		)
+	if err != nil {
 		return nil, err
 	}
 
-	return &user, err
+	return &user, nil
 }
 
-// untuk membaca user berdarsarkan id
-func (r *userRepo) GetUserByID(id int) (*model.User, error) {
+func (r *userRepo) GetUserByID(ctx context.Context, id int) (*model.User, error) {
 	var user model.User
 	query := `SELECT 
-    users.name, 
-    users.email, 
-    roles.name AS role_name,
-	users.role_id,
-	users.password_hash
-FROM users
-JOIN roles ON users.role_id = roles.id
-WHERE user_id = $1 AND users.deleted_at IS NULL;`
-	err := r.DB.QueryRow(context.Background(), query, id).Scan(&user.Name, &user.Email, &user.Role, &user.Role_id, &user.Password)
+		users.user_id,
+		users.name, 
+		users.email, 
+		roles.name AS role_name,
+		users.role_id,
+		users.password_hash
+	FROM users
+	JOIN roles ON users.role_id = roles.id
+	WHERE users.user_id = $1 AND users.deleted_at IS NULL;`
+
+	err := r.DB.QueryRow(ctx, query, id).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.Role,
+		&user.Role_id,
+		&user.Password,
+	)
 	if err != nil {
-		r.Logger.Error("Database Query Error: Gagal mendapatkan user berdarsaskan id",
-			zap.Error(err),
-			zap.String("query", query),
-		)
 		return nil, err
 	}
 	return &user, nil

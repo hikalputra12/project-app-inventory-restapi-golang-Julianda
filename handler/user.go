@@ -5,11 +5,10 @@ import (
 	"app-inventory/model"
 	"app-inventory/service"
 	"app-inventory/utils"
-	"encoding/json"
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +17,6 @@ type UserHandler struct {
 	logger  *zap.Logger
 }
 
-// constructor
 func NewUserHandler(service service.UserServiceInterface, log *zap.Logger) UserHandler {
 	return UserHandler{
 		service: service,
@@ -26,163 +24,142 @@ func NewUserHandler(service service.UserServiceInterface, log *zap.Logger) UserH
 	}
 }
 
-func (h *UserHandler) ListUser(w http.ResponseWriter, r *http.Request) {
-	page, err := strconv.Atoi(r.URL.Query().Get("page"))
-	if err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid page", nil)
-		return
-	}
+func (h *UserHandler) ListUser(c *gin.Context) {
+	page := utils.StringToInt(c.DefaultQuery("page", "1"), 1)
+	limit := utils.StringToInt(c.DefaultQuery("limit", "10"), 10)
 
-	// config limit pagination
-	limit := 3
-
-	// Get data users form service all users
-	users, pagination, err := h.service.GetAllUser(page, limit)
+	users, pagination, err := h.service.GetAllUser(c.Request.Context(), page, limit)
 	if err != nil {
-		h.logger.Error("failed get list user on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch assignments: "+err.Error(), nil)
+		h.logger.Error("Failed to get list user from service", zap.Error(err))
+		utils.ResponseError(c, http.StatusInternalServerError, "Gagal mengambil daftar pengguna: "+err.Error(), nil)
 		return
 	}
 
 	var response []dto.UserListResponse
 	for _, item := range users {
 		response = append(response, dto.UserListResponse{
+			ID:    item.ID,
 			Name:  item.Name,
 			Email: item.Email,
 			Role:  item.Role,
 		})
-
 	}
-	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
+	if response == nil {
+		response = []dto.UserListResponse{}
+	}
+
+	utils.ResponsePagination(c, http.StatusOK, "Berhasil mendapatkan daftar pengguna", response, *pagination)
 }
 
-// get user by id
-func (h *UserHandler) UserById(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	userID, _ := strconv.Atoi(id)
-
-	// Get data users form service all users
-	user, err := h.service.GetUserById(userID)
-	if err != nil {
-		h.logger.Error("failed get user by id on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch assignments: "+err.Error(), nil)
+func (h *UserHandler) UserById(c *gin.Context) {
+	idStr := c.Param("id")
+	userID, err := strconv.Atoi(idStr)
+	if err != nil || userID <= 0 {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format ID pengguna tidak valid", nil)
 		return
 	}
-	var response dto.UserByIdResponse
-	response = dto.UserByIdResponse{
-		Name:  user.Name,
-		Email: user.Email,
-		Role:  user.Role,
-	}
-	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
 
+	user, err := h.service.GetUserById(c.Request.Context(), userID)
+	if err != nil {
+		h.logger.Error("Failed to get user by id", zap.Error(err), zap.Int("id", userID))
+		utils.ResponseError(c, http.StatusNotFound, "Pengguna tidak ditemukan", nil)
+		return
+	}
+
+	response := dto.UserByIdResponse{
+		ID:     user.ID,
+		Name:   user.Name,
+		Email:  user.Email,
+		Role:   user.Role,
+		RoleID: user.Role_id,
+	}
+	utils.ResponseSuccess(c, http.StatusOK, "Berhasil mendapatkan data pengguna", response)
 }
 
-func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req dto.CreateNewUserRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format JSON tidak valid", nil)
 		return
 	}
+
+	if fieldErrors, err := utils.ValidateErrors(req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Validasi input gagal", fieldErrors)
+		return
+	}
+
 	newUser := model.User{
 		Name:     req.Name,
 		Email:    req.Email,
 		Password: req.Password,
 		Role_id:  req.Role_id,
 	}
-	err := h.service.CreateUser(&newUser)
+
+	err := h.service.CreateUser(c.Request.Context(), &newUser)
 	if err != nil {
-		h.logger.Error("failed create user on service",
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusBadRequest, "input tidak sesuai format yang di tentukan", nil)
+		h.logger.Error("Failed to create user on service", zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, "Gagal membuat pengguna baru: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Create new user succesfully",
-	})
-	h.logger.Info("sukses membuat user baru")
 
+	utils.ResponseSuccess(c, http.StatusCreated, "Pengguna baru berhasil dibuat", map[string]interface{}{
+		"id":    newUser.ID,
+		"name":  newUser.Name,
+		"email": newUser.Email,
+	})
 }
 
-func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
-
-	//mengambil id
-	idStr := chi.URLParam(r, "id")
+func (h *UserHandler) UpdateUser(c *gin.Context) {
+	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
-
-	if err != nil {
-		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+	if err != nil || id <= 0 {
+		utils.ResponseError(c, http.StatusBadRequest, "Format ID pengguna tidak valid", nil)
 		return
 	}
+
 	var req dto.UpdateUserRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid input", nil)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("Failed to decode JSON body", zap.Error(err))
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format JSON tidak valid", nil)
 		return
 	}
 
-	newUser := model.User{
+	if fieldErrors, err := utils.ValidateErrors(req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Validasi input gagal", fieldErrors)
+		return
+	}
+
+	updateUser := model.User{
 		Name:     req.Name,
 		Email:    req.Email,
 		Password: req.Password,
 		Role_id:  req.Role_id,
 	}
-	err = h.service.UpdateUser(id, &newUser)
+
+	err = h.service.UpdateUser(c.Request.Context(), id, &updateUser)
 	if err != nil {
-		h.logger.Error("failed update user on service",
-			zap.String("user_id", idStr),
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusBadRequest, "input tidak sesuai format yang di tentukan", nil)
+		h.logger.Error("Failed to update user on service", zap.Int("id", id), zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, "Gagal memperbarui pengguna: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Update user succesfully",
-	})
 
-	//log sukses
-	h.logger.Info("sukses update user", zap.String("user_id", idStr))
+	utils.ResponseSuccess(c, http.StatusOK, "Pengguna berhasil diperbarui", map[string]int{"id": id})
 }
 
-func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
-	//mengambil id
-	idStr := chi.URLParam(r, "id")
-
+func (h *UserHandler) DeleteUser(c *gin.Context) {
+	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
-
-	if err != nil {
-		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+	if err != nil || id <= 0 {
+		utils.ResponseError(c, http.StatusBadRequest, "Format ID pengguna tidak valid", nil)
 		return
 	}
 
-	err = h.service.DeleteUser(id)
+	err = h.service.DeleteUser(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("failed delete user on service",
-			zap.String("user_id", idStr),
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusBadRequest, "input tidak sesuai format yang di tentukan", nil)
+		h.logger.Error("Failed to delete user on service", zap.Int("id", id), zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, "Gagal menghapus pengguna: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Delete user succesfully ",
-	})
-	//log sukses
-	h.logger.Info("sukses delete user", zap.String("user_id", idStr))
+
+	utils.ResponseSuccess(c, http.StatusOK, "Pengguna berhasil dinonaktifkan/dihapus", map[string]int{"id": id})
 }

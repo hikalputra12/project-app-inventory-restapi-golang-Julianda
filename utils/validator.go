@@ -2,40 +2,21 @@ package utils
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/go-playground/validator/v10"
 )
 
-var validate *validator.Validate
+var (
+	validateInstance *validator.Validate
+	once             sync.Once
+)
 
-// validator inline message
-func ValidateInput(data interface{}) (string, error) {
-	// Create new validation and check the struct
-	validate = validator.New()
-	err := validate.Struct(data)
-
-	if err != nil {
-		// Handle invalid validation errors
-		if _, ok := err.(*validator.InvalidValidationError); ok {
-			fmt.Println(err)
-			return "", nil
-		}
-
-		// Collect validation errors
-		var errors []string
-		for _, e := range err.(validator.ValidationErrors) {
-			var message string
-			if e.Tag() == "email" {
-				message = "Please input correct email format"
-			} else {
-				message = fmt.Sprintf("%s must %s", e.Field(), e.Tag())
-			}
-			errors = append(errors, message)
-		}
-		return fmt.Sprint(errors), err
-	}
-
-	return "", nil
+func getValidator() *validator.Validate {
+	once.Do(func() {
+		validateInstance = validator.New()
+	})
+	return validateInstance
 }
 
 type FieldError struct {
@@ -43,43 +24,53 @@ type FieldError struct {
 	Message string `json:"message"`
 }
 
-// validator object struct message
+// ValidateErrors validates struct fields and returns structured error messages
 func ValidateErrors(data any) ([]FieldError, error) {
-	validate := validator.New()
-
-	err := validate.Struct(data)
+	v := getValidator()
+	err := v.Struct(data)
 	if err == nil {
 		return nil, nil
 	}
 
 	var errors []FieldError
-
 	if validationErrors, ok := err.(validator.ValidationErrors); ok {
-		for _, err := range validationErrors {
+		for _, e := range validationErrors {
 			var message string
-			switch err.Tag() {
+			switch e.Tag() {
 			case "required":
-				message = fmt.Sprintf("%s is required", err.Field())
+				message = fmt.Sprintf("%s is required", e.Field())
 			case "email":
 				message = "Please enter a valid email format"
 			case "gte":
-				message = fmt.Sprintf("%s must be a non-negative number", err.Field())
+				message = fmt.Sprintf("%s must be greater than or equal to %s", e.Field(), e.Param())
+			case "gt":
+				message = fmt.Sprintf("%s must be greater than %s", e.Field(), e.Param())
+			case "lte":
+				message = fmt.Sprintf("%s must be less than or equal to %s", e.Field(), e.Param())
 			case "min":
-				message = fmt.Sprintf("%s must be at least %s characters long", err.Field(), err.Param())
-			case "eqfield":
-				message = fmt.Sprintf("%s must match %s", err.Field(), err.Param())
+				message = fmt.Sprintf("%s must be at least %s characters long", e.Field(), e.Param())
+			case "max":
+				message = fmt.Sprintf("%s cannot exceed %s characters", e.Field(), e.Param())
 			default:
-				message = fmt.Sprintf("%s is invalid", err.Field())
+				message = fmt.Sprintf("%s failed validation on '%s'", e.Field(), e.Tag())
 			}
 
 			errors = append(errors, FieldError{
-				Field:   err.Field(),
+				Field:   e.Field(),
 				Message: message,
 			})
 		}
 		return errors, err
 	}
 
-	// Fallback: return original error if not a validation error
 	return nil, err
+}
+
+// ValidateInput helper returning string error for backwards compatibility
+func ValidateInput(data interface{}) (string, error) {
+	fieldErrors, err := ValidateErrors(data)
+	if err != nil && len(fieldErrors) > 0 {
+		return fieldErrors[0].Message, err
+	}
+	return "", err
 }

@@ -18,16 +18,27 @@ type PgxIface interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
 }
 
-func InitDB(config utils.DatabaseCofig) (*pgxpool.Pool, error) {
-	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s",
-		config.Username, config.Password, config.Name, config.Host)
+func InitDB(config utils.DatabaseConfig) (*pgxpool.Pool, error) {
+	port := config.Port
+	if port == "" {
+		port = "5432"
+	}
+
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%s",
+		config.Username, config.Password, config.Name, config.Host, port)
+
 	cfg, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
-	cfg.MaxConns = config.MaxConn
-	cfg.MinConns = 5
+	maxConns := config.MaxConn
+	if maxConns <= 0 {
+		maxConns = 10
+	}
+
+	cfg.MaxConns = maxConns
+	cfg.MinConns = 2
 	cfg.MaxConnLifetime = 30 * time.Minute
 	cfg.MaxConnIdleTime = 5 * time.Minute
 	cfg.HealthCheckPeriod = 1 * time.Minute

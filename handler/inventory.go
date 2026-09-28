@@ -5,11 +5,10 @@ import (
 	"app-inventory/model"
 	"app-inventory/service"
 	"app-inventory/utils"
-	"encoding/json"
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +17,6 @@ type InventoryHandler struct {
 	logger  *zap.Logger
 }
 
-// constructor
 func NewInventoryHandler(service service.InventoryServiceInterface, log *zap.Logger) InventoryHandler {
 	return InventoryHandler{
 		service: service,
@@ -26,200 +24,175 @@ func NewInventoryHandler(service service.InventoryServiceInterface, log *zap.Log
 	}
 }
 
-func (h *InventoryHandler) ListInventory(w http.ResponseWriter, r *http.Request) {
-	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+func (h *InventoryHandler) ListInventory(c *gin.Context) {
+	page := utils.StringToInt(c.DefaultQuery("page", "1"), 1)
+	limit := utils.StringToInt(c.DefaultQuery("limit", "10"), 10)
+
+	inventories, pagination, err := h.service.GetAllInventory(c.Request.Context(), page, limit)
 	if err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid page", nil)
+		h.logger.Error("Failed to get all inventory on service", zap.Error(err))
+		utils.ResponseError(c, http.StatusInternalServerError, "Gagal mengambil daftar inventaris: "+err.Error(), nil)
 		return
 	}
 
-	// config limit pagination
-	limit := 3
-
-	// Get data Inventorys form service all Inventorys
-	Inventories, pagination, err := h.service.GetAllInventory(page, limit)
-	if err != nil {
-		h.logger.Error("failed get all inventory on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch inventory: "+err.Error(), nil)
-		return
-	}
 	var response []dto.InventoryListResponse
-	for _, item := range Inventories {
+	for _, item := range inventories {
 		response = append(response, dto.InventoryListResponse{
-			Name:      item.Name,
-			Price:     item.Price,
-			Stock:     item.Stock,
-			Category:  item.Category,
-			Rack:      item.Rack,
-			Warehouse: item.Warehouse,
+			ID:                  item.ID,
+			Name:                item.Name,
+			Price:               item.Price,
+			Stock:               item.Stock,
+			Category:            item.Category,
+			Rack:                item.Rack,
+			Warehouse:           item.Warehouse,
+			CategoryInventoryID: item.Category_inventory_id,
 		})
-
 	}
-	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
+	if response == nil {
+		response = []dto.InventoryListResponse{}
+	}
 
+	utils.ResponsePagination(c, http.StatusOK, "Berhasil memuat data inventaris", response, *pagination)
 }
 
-func (h *InventoryHandler) CreateInventory(w http.ResponseWriter, r *http.Request) {
+func (h *InventoryHandler) CreateInventory(c *gin.Context) {
 	var req dto.CreateInventoryRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("Failed to decode JSON body", zap.Error(err))
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format JSON tidak valid", nil)
 		return
 	}
+
+	if fieldErrors, err := utils.ValidateErrors(req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Validasi input gagal", fieldErrors)
+		return
+	}
+
 	newInventory := model.Inventory{
 		Name:                  req.Name,
 		Price:                 req.Price,
 		Stock:                 req.Stock,
 		Category_inventory_id: req.Category_id,
 	}
-	err := h.service.CreateInventory(&newInventory)
+
+	err := h.service.CreateInventory(c.Request.Context(), &newInventory)
 	if err != nil {
-		h.logger.Error("failed create inventory on service",
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		h.logger.Error("Failed to create inventory", zap.Error(err))
+		utils.ResponseError(c, http.StatusInternalServerError, "Gagal membuat inventaris: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Create new inventory succesfully",
-	})
 
+	utils.ResponseSuccess(c, http.StatusCreated, "Inventaris baru berhasil dibuat", map[string]interface{}{
+		"id":    newInventory.ID,
+		"name":  newInventory.Name,
+		"stock": newInventory.Stock,
+		"price": newInventory.Price,
+	})
 }
 
-func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Request) {
-	//mengambil id
-	idStr := chi.URLParam(r, "id")
-
+func (h *InventoryHandler) UpdateInventory(c *gin.Context) {
+	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
-
-	if err != nil {
-		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+	if err != nil || id <= 0 {
+		utils.ResponseError(c, http.StatusBadRequest, "Format ID inventaris tidak valid", nil)
 		return
 	}
+
 	var req dto.UpdateInventoryRequest
-	//mengubah json body ke struct
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.logger.Warn("Gagal decode JSON body", zap.Error(err))
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid JSON format", nil)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("Failed to decode JSON body", zap.Error(err))
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format JSON tidak valid", nil)
 		return
 	}
 
-	newInventory := model.Inventory{
-		Name:                  req.Name,
-		Price:                 req.Price,
-		Stock:                 req.Stock,
-		Category_inventory_id: req.Category_id,
+	if fieldErrors, err := utils.ValidateErrors(req); err != nil {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Validasi input gagal", fieldErrors)
+		return
 	}
-	err = h.service.UpdateInventory(id, &newInventory)
+
+	err = h.service.UpdateInventory(c.Request.Context(), id, &req)
 	if err != nil {
-		h.logger.Error("failed update inventory on service",
-			zap.String("Inventory_id", idStr),
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		h.logger.Error("Failed to update inventory", zap.Int("id", id), zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, "Gagal memperbarui inventaris: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Update Inventory succesfully",
-	})
 
+	utils.ResponseSuccess(c, http.StatusOK, "Inventaris berhasil diperbarui", map[string]int{"id": id})
 }
 
-func (h *InventoryHandler) DeleteInventory(w http.ResponseWriter, r *http.Request) {
-	//mengambil id
-	idStr := chi.URLParam(r, "id")
-
+func (h *InventoryHandler) DeleteInventory(c *gin.Context) {
+	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
-
-	if err != nil {
-		utils.ResponseError(w, http.StatusBadRequest, "Invalid ID format (harus angka)", nil)
+	if err != nil || id <= 0 {
+		utils.ResponseError(c, http.StatusBadRequest, "Format ID inventaris tidak valid", nil)
 		return
 	}
 
-	err = h.service.DeleteInventory(id)
+	err = h.service.DeleteInventory(c.Request.Context(), id)
 	if err != nil {
-		h.logger.Error("failed delete inventory on service",
-			zap.String("Inventory_id", idStr),
-			zap.Error(err),
-		)
-		utils.ResponseError(w, http.StatusInternalServerError, err.Error(), nil)
+		h.logger.Error("Failed to delete inventory", zap.Int("id", id), zap.Error(err))
+		utils.ResponseError(c, http.StatusBadRequest, "Gagal menghapus inventaris: "+err.Error(), nil)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":  true,
-		"message": "Delete Inventory succesfully",
-	})
 
+	utils.ResponseSuccess(c, http.StatusOK, "Inventaris berhasil dihapus", map[string]int{"id": id})
 }
 
-func (h *InventoryHandler) CheckStock(w http.ResponseWriter, r *http.Request) {
-	page, err := strconv.Atoi(r.URL.Query().Get("page"))
+func (h *InventoryHandler) CheckStock(c *gin.Context) {
+	page := utils.StringToInt(c.DefaultQuery("page", "1"), 1)
+	limit := utils.StringToInt(c.DefaultQuery("limit", "10"), 10)
+
+	inventories, pagination, err := h.service.CheckStock(c.Request.Context(), page, limit)
 	if err != nil {
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Invalid page", nil)
+		h.logger.Error("Failed to check low stock", zap.Error(err))
+		utils.ResponseError(c, http.StatusInternalServerError, "Gagal memeriksa stok menipis: "+err.Error(), nil)
 		return
 	}
 
-	// config limit pagination
-	limit := 3
-
-	// Get data Inventorys form service all Inventorys
-	Inventories, pagination, err := h.service.CheckStock(page, limit)
-	if err != nil {
-		h.logger.Error("failed check stock where limit <= 5 on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch inventory: "+err.Error(), nil)
-		return
-	}
 	var response []dto.InventoryListResponse
-	for _, item := range Inventories {
+	for _, item := range inventories {
 		response = append(response, dto.InventoryListResponse{
-			Name:      item.Name,
-			Price:     item.Price,
-			Stock:     item.Stock,
-			Category:  item.Category,
-			Rack:      item.Rack,
-			Warehouse: item.Warehouse,
+			ID:                  item.ID,
+			Name:                item.Name,
+			Price:               item.Price,
+			Stock:               item.Stock,
+			Category:            item.Category,
+			Rack:                item.Rack,
+			Warehouse:           item.Warehouse,
+			CategoryInventoryID: item.Category_inventory_id,
 		})
-
 	}
-	utils.ResponsePagination(w, http.StatusOK, "success get data", response, *pagination)
+	if response == nil {
+		response = []dto.InventoryListResponse{}
+	}
 
+	utils.ResponsePagination(c, http.StatusOK, "Berhasil memuat data stok menipis", response, *pagination)
 }
 
-// get inventory by id
-func (h *InventoryHandler) GetInventoryById(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	InventoryID, _ := strconv.Atoi(id)
-
-	// Get data Inventorys form service all Inventorys
-	Inventory, err := h.service.GetInventoryById(InventoryID)
-	if err != nil {
-		h.logger.Error("failed get Inventory by id on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusInternalServerError, "Failed to fetch assignments: "+err.Error(), nil)
+func (h *InventoryHandler) GetInventoryById(c *gin.Context) {
+	idStr := c.Param("id")
+	inventoryID, err := strconv.Atoi(idStr)
+	if err != nil || inventoryID <= 0 {
+		utils.ResponseBadRequest(c, http.StatusBadRequest, "Format ID inventaris tidak valid", nil)
 		return
 	}
-	var response dto.InventoryByIdResponse
-	response = dto.InventoryByIdResponse{
-		Name:      Inventory.Name,
-		Price:     Inventory.Price,
-		Stock:     Inventory.Stock,
-		Category:  Inventory.Category,
-		Rack:      Inventory.Rack,
-		Warehouse: Inventory.Warehouse,
+
+	inventory, err := h.service.GetInventoryById(c.Request.Context(), inventoryID)
+	if err != nil {
+		h.logger.Error("Failed to get inventory by id", zap.Error(err), zap.Int("id", inventoryID))
+		utils.ResponseError(c, http.StatusNotFound, "Inventaris tidak ditemukan", nil)
+		return
 	}
-	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
+
+	response := dto.InventoryByIdResponse{
+		ID:                  inventory.ID,
+		Name:                inventory.Name,
+		Price:               inventory.Price,
+		Stock:               inventory.Stock,
+		CategoryInventoryID: inventory.Category_inventory_id,
+		Category:            inventory.Category,
+		Rack:                inventory.Rack,
+		Warehouse:           inventory.Warehouse,
+	}
+	utils.ResponseSuccess(c, http.StatusOK, "Berhasil mendapatkan data inventaris", response)
 }

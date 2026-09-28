@@ -6,6 +6,7 @@ import (
 	"app-inventory/utils"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -14,7 +15,6 @@ type ReportHandler struct {
 	logger  *zap.Logger
 }
 
-// constructor
 func NewReportHandler(service service.ReportServiceInterface, log *zap.Logger) ReportHandler {
 	return ReportHandler{
 		service: service,
@@ -22,22 +22,19 @@ func NewReportHandler(service service.ReportServiceInterface, log *zap.Logger) R
 	}
 }
 
-func (h *ReportHandler) Report(w http.ResponseWriter, r *http.Request) {
-
-	report, err := h.service.Report()
+func (h *ReportHandler) Report(c *gin.Context) {
+	report, err := h.service.Report(c.Request.Context())
 	if err != nil {
-		h.logger.Error("failed get report on service",
-			zap.Error(err),
-		)
-		utils.ResponseBadRequest(w, http.StatusBadRequest, "Failed to fetch Report: "+err.Error(), nil)
+		h.logger.Error("Failed to get report on service", zap.Error(err))
+		utils.ResponseError(c, http.StatusInternalServerError, "Gagal memuat ringkasan laporan: "+err.Error(), nil)
 		return
 	}
+
 	response := dto.ReportResponse{
 		TotalTransactions: report.TotalTransactions,
 		TotalItemsSold:    report.TotalItemsSold,
 		TotalRevenue:      report.TotalRevenue,
 	}
 
-	utils.ResponseSuccess(w, http.StatusOK, "success get data", response)
-
+	utils.ResponseSuccess(c, http.StatusOK, "Berhasil memuat ringkasan laporan", response)
 }

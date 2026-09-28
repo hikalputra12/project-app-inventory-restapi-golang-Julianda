@@ -5,6 +5,7 @@ import (
 	"app-inventory/model"
 	"app-inventory/repository"
 	"app-inventory/utils"
+	"context"
 
 	"go.uber.org/zap"
 )
@@ -13,15 +14,15 @@ type CategoryService struct {
 	repo   repository.CategoryRepoInterface
 	logger *zap.Logger
 }
+
 type CategoryServiceInterface interface {
-	GetAllCategory(page, limit int) ([]model.Category, *dto.Pagination, error)
-	CreateCategory(category *model.Category) error
-	UpdateCategory(id int, category *model.Category) error
-	DeleteCategory(id int) error
-	GetCategoryById(id int) (*model.Category, error)
+	GetAllCategory(ctx context.Context, page, limit int) ([]model.Category, *dto.Pagination, error)
+	CreateCategory(ctx context.Context, category *model.Category) error
+	UpdateCategory(ctx context.Context, id int, category *model.Category) error
+	DeleteCategory(ctx context.Context, id int) error
+	GetCategoryById(ctx context.Context, id int) (*model.Category, error)
 }
 
-// constructor
 func NewCategoryService(repo repository.CategoryRepoInterface, log *zap.Logger) CategoryServiceInterface {
 	return &CategoryService{
 		repo:   repo,
@@ -29,77 +30,72 @@ func NewCategoryService(repo repository.CategoryRepoInterface, log *zap.Logger) 
 	}
 }
 
-func (s *CategoryService) GetAllCategory(page, limit int) ([]model.Category, *dto.Pagination, error) {
-	Categories, total, err := s.repo.GetAllCategory(page, limit)
+func (s *CategoryService) GetAllCategory(ctx context.Context, page, limit int) ([]model.Category, *dto.Pagination, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	categories, total, err := s.repo.GetAllCategory(ctx, page, limit)
 	if err != nil {
-		s.logger.Error("failed get all list category on repository ",
-			zap.Error(err),
-		)
+		s.logger.Error("Failed to get all category from repository", zap.Error(err))
 		return nil, nil, err
 	}
 	pagination := dto.Pagination{
 		CurrentPage: page,
 		Limit:       limit,
 		TotalPages:  utils.TotalPage(limit, int64(total)),
+		TotalItems:  int64(total),
 	}
-	return Categories, &pagination, nil
+	return categories, &pagination, nil
 }
 
-func (s *CategoryService) CreateCategory(Category *model.Category) error {
-	err := s.repo.CreateCategory(Category)
+func (s *CategoryService) CreateCategory(ctx context.Context, category *model.Category) error {
+	err := s.repo.CreateCategory(ctx, category)
 	if err != nil {
-		s.logger.Error("failed created category on repository ",
-			zap.Error(err),
-		)
+		s.logger.Error("Failed to create category on repository", zap.Error(err))
 		return err
 	}
 	return nil
 }
 
-func (s *CategoryService) UpdateCategory(id int, Category *model.Category) error {
-	getCategory, err := s.repo.GetCategoryByID(id)
+func (s *CategoryService) UpdateCategory(ctx context.Context, id int, category *model.Category) error {
+	existing, err := s.repo.GetCategoryByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	if Category.Name != "" {
-		getCategory.Name = Category.Name
+	if category.Name != "" {
+		existing.Name = category.Name
 	}
-	if Category.Rack_inventory_id != 0 {
-		getCategory.Rack_inventory_id = Category.Rack_inventory_id
+	if category.Rack_inventory_id != 0 {
+		existing.Rack_inventory_id = category.Rack_inventory_id
 	}
 
-	NewCategoryUpdate := &model.Category{
-		Name:              getCategory.Name,
-		Rack_inventory_id: getCategory.Rack_inventory_id,
-	}
-	err = s.repo.UpdateCategory(id, NewCategoryUpdate)
+	err = s.repo.UpdateCategory(ctx, id, existing)
 	if err != nil {
-		s.logger.Error("failed updated category on repository ",
-			zap.Error(err),
-		)
-		return err
-	}
-	return nil
-}
-func (s *CategoryService) DeleteCategory(id int) error {
-	err := s.repo.DeleteCategory(id)
-	if err != nil {
-		s.logger.Error("failed deleted category on repository ",
-			zap.Error(err),
-		)
+		s.logger.Error("Failed to update category on repository", zap.Error(err))
 		return err
 	}
 	return nil
 }
 
-// get category by id
-func (s *CategoryService) GetCategoryById(id int) (*model.Category, error) {
-	category, err := s.repo.GetCategoryByID(id)
+func (s *CategoryService) DeleteCategory(ctx context.Context, id int) error {
+	err := s.repo.DeleteCategory(ctx, id)
 	if err != nil {
-		s.logger.Error("failed to connect service to read category by id", zap.Error(err))
+		s.logger.Error("Failed to delete category on repository", zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (s *CategoryService) GetCategoryById(ctx context.Context, id int) (*model.Category, error) {
+	category, err := s.repo.GetCategoryByID(ctx, id)
+	if err != nil {
+		s.logger.Error("Failed to read category by id", zap.Error(err), zap.Int("id", id))
 		return nil, err
 	}
-
 	return category, nil
 }
